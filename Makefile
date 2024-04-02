@@ -14,5 +14,5 @@ CFLAGS+=-DUSE_JPEG8
 
 CSTFLAGS=$(CFLAGS) -DLIBRAW_NOTHREADS
 
-bin: main.c
-	${CC} -DLIBRAW_NOTHREADS  ${CFLAGS} -o raw2jpg main.c -lm -lstdc++ ${LDADD}
+bin: main.c lut3d.c
+	${CC} -DLIBRAW_NOTHREADS  ${CFLAGS} -o raw2jpg main.c lut3d.c -lm -lstdc++ ${LDADD}

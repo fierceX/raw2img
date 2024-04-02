@@ -7,9 +7,18 @@
 #include "libraw/libraw.h"
 #include "jpeglib.h"
 
-void write_jpeg(libraw_processed_image_t *img, const char *outout, int quality)
+#include "lut3d.h"
+
+enum interp_mode {
+    INTERPOLATE_NEAREST,
+    INTERPOLATE_TRILINEAR,
+    INTERPOLATE_TETRAHEDRAL,
+    NB_INTERP_MODE
+};
+
+void write_jpeg(char * img,int width, int height, int colors,const char *outout, int quality)
 {
-  if (img->colors != 1 && img->colors != 3)
+  if (colors != 1 && colors != 3)
   {
     printf("Only BW and 3-color images supported for JPEG output\n");
     return;
@@ -26,17 +35,17 @@ void write_jpeg(libraw_processed_image_t *img, const char *outout, int quality)
   cinfo.err = jpeg_std_error(&jerr);
   jpeg_create_compress(&cinfo);
   jpeg_stdio_dest(&cinfo, f);
-  cinfo.image_width = img->width; /* image width and height, in pixels */
-  cinfo.image_height = img->height;
-  cinfo.input_components = img->colors;                              /* # of color components per pixel */
-  cinfo.in_color_space = img->colors == 3 ? JCS_RGB : JCS_GRAYSCALE; /* colorspace of input image */
+  cinfo.image_width = width; /* image width and height, in pixels */
+  cinfo.image_height = height;
+  cinfo.input_components = colors;                              /* # of color components per pixel */
+  cinfo.in_color_space = colors == 3 ? JCS_RGB : JCS_GRAYSCALE; /* colorspace of input image */
   jpeg_set_defaults(&cinfo);
   jpeg_set_quality(&cinfo, quality, TRUE);
   jpeg_start_compress(&cinfo, TRUE);
-  row_stride = img->width * img->colors; /* JSAMPLEs per row in image_buffer */
+  row_stride = width * colors; /* JSAMPLEs per row in image_buffer */
   while (cinfo.next_scanline < cinfo.image_height)
   {
-    row_pointer[0] = &img->data[cinfo.next_scanline * row_stride];
+    row_pointer[0] = &img[cinfo.next_scanline * row_stride];
     (void)jpeg_write_scanlines(&cinfo, row_pointer, 1);
   }
   jpeg_finish_compress(&cinfo);
@@ -73,7 +82,7 @@ float exposure_shift(libraw_processed_image_t *img)
     fprintf(stderr, "libraw  %s\n",libraw_strerror(ret)); \
   }
 
-#define HELP printf("RAW 转换 JPG 工具，基于 Libraw 库：\n\t -a：使用自动白平衡\n\t -w：使用相机设置的白平衡\n\t -h：输出尺寸减半\n\t -i：输入文件路径\n\t -o：输出文件路径\n\t -e：曝光偏移，值范围为 0.25-8，从降低两档到提升三档。当该值指定时，自动曝光偏移将不起作用\n\t -q：输出 JPG 质量，值范围 0-100\n例如：raw2jpg -w -h -i input.RW2 -o output.jpg -e 2 -q 90\n");
+#define HELP printf("RAW 转换 JPG 工具，基于 Libraw 库：\n\t -a：使用自动白平衡\n\t -w：使用相机设置的白平衡\n\t -h：输出尺寸减半\n\t -i：输入文件路径\n\t -o：输出文件路径\n\t -e：曝光偏移，值范围为 0.25-8，从降低两档到提升三档。当该值指定时，自动曝光偏移将不起作用\n\t -q：输出 JPG 质量，值范围 0-100\n\t -l：使用 lut 文件滤镜\n例如：raw2jpg -w -h -i input.RW2 -o output.jpg -e 2 -q 90\n");
 
 int main(int argc, char *argv[])
 {
@@ -85,6 +94,8 @@ int main(int argc, char *argv[])
   char input[1024];
   char output[1024];
   int io = 0;
+  bool lut = false;
+  char lut_file[1024];
   char expa[1024];
   float exp_shift = 0.0;
   int exp_shift_flag = 0;
@@ -94,7 +105,7 @@ int main(int argc, char *argv[])
 
   opterr = 0;
 
-  while ((c = getopt(argc, argv, "awhi:o:e:q:")) != -1)
+  while ((c = getopt(argc, argv, "awhi:o:e:q:l:")) != -1)
     switch (c)
     {
     case 'a':
@@ -120,6 +131,10 @@ int main(int argc, char *argv[])
       break;
     case 'q':
       quality = atoi(optarg);
+      break;
+    case 'l':
+      snprintf(lut_file, 1024, "%s", optarg);
+      lut = true;
       break;
     case '?':
       printf("无法解析参数：%c\n",optopt);
@@ -179,7 +194,25 @@ int main(int argc, char *argv[])
   HANDLE_ALL_ERRORS(ret);
   libraw_processed_image_t *img = libraw_dcraw_make_mem_image(iprc, err);
   HANDLE_ALL_ERRORS(*err);
-  write_jpeg(img, output, quality);
+
+  if(lut){
+    unsigned char *outputImg = (unsigned char *) malloc(img->data_size * sizeof(unsigned char));
+    memcpy(outputImg, img->data, img->data_size);
+
+    int is16bit = 0;
+    //  INTERPOLATE_NEAREST
+    //	INTERPOLATE_TRILINEAR
+    //	INTERPOLATE_TETRAHEDRAL
+    int interp_mode = INTERPOLATE_TETRAHEDRAL;
+    apply_lut(lut_file, img->data, outputImg, img->width, img->height, img->width * img->colors, img->colors, interp_mode,
+              is16bit);
+
+    write_jpeg(outputImg,img->width,img->height,img->colors,output,quality);
+  }
+  else{
+    write_jpeg(img->data,img->width,img->height,img->colors,output,quality);
+  }
+  
 
   libraw_close(iprc);
   return 0;
