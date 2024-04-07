@@ -3,18 +3,21 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <math.h>
-
 #include "libraw/libraw.h"
 #include "jpeglib.h"
 
 #include "lut3d.h"
 
-enum interp_mode {
-    INTERPOLATE_NEAREST,
-    INTERPOLATE_TRILINEAR,
-    INTERPOLATE_TETRAHEDRAL,
-    NB_INTERP_MODE
-};
+#define DENOISE_RATIO 400 // 降噪倍数
+#define DEFAULTD_ENOISE 256 // 默认降噪参数
+#define DEFAULTD_QUALITY 90 // 默认输出质量
+#define MAX_BRIGHTNESS 220  // 计算平均亮度上限
+#define MIN_BRIGHTNESS 20  // 计算评价亮度下限
+#define MAX_BRIGHTNESS_THRESHOLD 120  // 需要进行曝光偏移的平均亮度上限
+#define MIN_BRIGHTNESS_THRESHOLD 60  // 需要进行曝光偏移的平均亮度下限
+#define BRIGHTNESS_THRESHOLD 110  // 确定曝光偏移的方向
+#define BRIGHTNESS_THRESHOLD_FLOAT 110.0 // 计算曝光偏移的倍数
+
 
 void write_jpeg(char * img,int width, int height, int colors,const char *outout, int quality)
 {
@@ -56,15 +59,22 @@ void write_jpeg(char * img,int width, int height, int colors,const char *outout,
 float exposure_shift(libraw_processed_image_t *img)
 {
   int mean_brightness = 0;
+  int j = 0;
   for (int i = 0; i < img->data_size; i++)
   {
-    mean_brightness += img->data[i];
+    if(img->data[i] < MAX_BRIGHTNESS && img->data[i] > MIN_BRIGHTNESS){
+      mean_brightness += img->data[i];
+      j++;
+    }
+    
   }
 
-  mean_brightness = mean_brightness / img->data_size;
+  mean_brightness = mean_brightness / j;
 
   float exposure_shift_value = 0.0;
-  exposure_shift_value = (160 > mean_brightness) ? pow(2.0, 160.0 / mean_brightness) : -pow(2.0, 160.0 / mean_brightness);
+  if(mean_brightness < MAX_BRIGHTNESS_THRESHOLD && mean_brightness > MIN_BRIGHTNESS_THRESHOLD){
+    exposure_shift_value = (BRIGHTNESS_THRESHOLD > mean_brightness) ? pow(2.0, BRIGHTNESS_THRESHOLD_FLOAT / mean_brightness) : -pow(2.0, BRIGHTNESS_THRESHOLD_FLOAT / mean_brightness);
+  }
   return exposure_shift_value;
 }
 
@@ -82,7 +92,7 @@ float exposure_shift(libraw_processed_image_t *img)
     fprintf(stderr, "libraw  %s\n",libraw_strerror(ret)); \
   }
 
-#define HELP printf("RAW 转换 JPG 工具，基于 Libraw 库：\n\t -a：使用自动白平衡\n\t -w：使用相机设置的白平衡\n\t -h：输出尺寸减半\n\t -i：输入文件路径\n\t -o：输出文件路径\n\t -e：曝光偏移，值范围为 0.25-8，从降低两档到提升三档。当该值指定时，自动曝光偏移将不起作用\n\t -q：输出 JPG 质量，值范围 0-100\n\t -l：使用 lut 文件滤镜\n例如：raw2jpg -w -h -i input.RW2 -o output.jpg -e 2 -q 90\n");
+#define HELP printf("RAW 转换 JPG 工具，基于 Libraw 库：\n\t -a：使用自动白平衡\n\t -w：使用相机设置的白平衡\n\t -h：输出尺寸减半\n\t -i：输入文件路径\n\t -o：输出文件路径\n\t -e：曝光偏移，值范围为 0.25-8，从降低两档到提升三档。当该值指定时，自动曝光偏移将不起作用\n\t -q：输出 JPG 质量，值范围 0-100\n\t -l：使用 lut 文件滤镜\n\t -n：降噪参数。当指定该值时，自动降噪将不起作用\n例如：raw2jpg -w -h -i input.RW2 -o output.jpg -e 2 -q 90\n");
 
 int main(int argc, char *argv[])
 {
@@ -90,7 +100,9 @@ int main(int argc, char *argv[])
   int use_camera_wb = 0;
   int use_auto_wb = 0;
   int half_size = 0;
-  int quality = 90;
+  int quality = DEFAULTD_QUALITY;
+  float threshold = DEFAULTD_ENOISE;
+  bool threshold_flag = true;
   char input[1024];
   char output[1024];
   int io = 0;
@@ -98,14 +110,14 @@ int main(int argc, char *argv[])
   char lut_file[1024];
   char expa[1024];
   float exp_shift = 0.0;
-  int exp_shift_flag = 0;
+  bool exp_shift_flag = true;
 
   int index;
   int c;
 
   opterr = 0;
 
-  while ((c = getopt(argc, argv, "awhi:o:e:q:l:")) != -1)
+  while ((c = getopt(argc, argv, "awhi:o:e:q:l:n:")) != -1)
     switch (c)
     {
     case 'a':
@@ -127,7 +139,7 @@ int main(int argc, char *argv[])
       break;
     case 'e':
       exp_shift = atof(optarg);
-      exp_shift_flag = 1;
+      exp_shift_flag = false;
       break;
     case 'q':
       quality = atoi(optarg);
@@ -135,6 +147,10 @@ int main(int argc, char *argv[])
     case 'l':
       snprintf(lut_file, 1024, "%s", optarg);
       lut = true;
+      break;
+    case 'n':
+      threshold = atof(optarg);
+      threshold_flag = false;
       break;
     case '?':
       printf("无法解析参数：%c\n",optopt);
@@ -176,7 +192,8 @@ int main(int argc, char *argv[])
 
   ret = libraw_unpack(iprc);
   HANDLE_ALL_ERRORS(ret);
-  if(exp_shift_flag == 0){  /* 计算平均亮度 */
+
+  if(exp_shift_flag){  /* 计算平均亮度 */
     
     ret = libraw_dcraw_process(iprc);
     HANDLE_ALL_ERRORS(ret);
@@ -186,10 +203,14 @@ int main(int argc, char *argv[])
     float exposure_shift_value = exposure_shift(img_);
     iprc->params.exp_shift = exposure_shift_value;
   }else{
-    printf("%f",exp_shift);
     iprc->params.exp_shift = exp_shift;
   }
   iprc->params.half_size = half_size;
+  if(threshold_flag){
+    threshold = threshold * (iprc->other.iso_speed / DENOISE_RATIO);
+  }
+  iprc->params.threshold = threshold;
+  printf("曝光偏移：%f。降噪参数：%f\n",iprc->params.exp_shift,iprc->params.threshold);
   ret = libraw_dcraw_process(iprc);
   HANDLE_ALL_ERRORS(ret);
   libraw_processed_image_t *img = libraw_dcraw_make_mem_image(iprc, err);
