@@ -181,9 +181,6 @@ int main(int argc, char *argv[])
   iprc->params.use_camera_wb = use_camera_wb;
   iprc->params.use_auto_wb = use_auto_wb;
 
-  int erra = 0;
-  int *err = &erra;
-
   int ret = libraw_open_file(iprc, input);
   HANDLE_ALL_ERRORS(ret);
 
@@ -198,8 +195,8 @@ int main(int argc, char *argv[])
     ret = libraw_dcraw_process(iprc);
     HANDLE_ALL_ERRORS(ret);
     
-    libraw_processed_image_t *img_ = libraw_dcraw_make_mem_image(iprc, err);
-    HANDLE_ALL_ERRORS(*err);
+    libraw_processed_image_t *img_ = libraw_dcraw_make_mem_image(iprc, &ret);
+    HANDLE_ALL_ERRORS(ret);
     float exposure_shift_value = exposure_shift(img_);
     iprc->params.exp_shift = exposure_shift_value;
   }else{
@@ -213,12 +210,14 @@ int main(int argc, char *argv[])
   printf("曝光偏移：%f。降噪参数：%f\n",iprc->params.exp_shift,iprc->params.threshold);
   ret = libraw_dcraw_process(iprc);
   HANDLE_ALL_ERRORS(ret);
-  libraw_processed_image_t *img = libraw_dcraw_make_mem_image(iprc, err);
-  HANDLE_ALL_ERRORS(*err);
+  libraw_processed_image_t *img = libraw_dcraw_make_mem_image(iprc, &ret);
+  HANDLE_ALL_ERRORS(ret);
+
+  char * outputImg = img->data;
 
   if(lut){
-    unsigned char *outputImg = (unsigned char *) malloc(img->data_size * sizeof(unsigned char));
-    memcpy(outputImg, img->data, img->data_size);
+    outputImg = (unsigned char *) malloc(img->data_size * sizeof(unsigned char));
+    // memcpy(outputImg, img->data, img->data_size);
 
     int is16bit = 0;
     //  INTERPOLATE_NEAREST
@@ -227,12 +226,8 @@ int main(int argc, char *argv[])
     int interp_mode = INTERPOLATE_TETRAHEDRAL;
     apply_lut(lut_file, img->data, outputImg, img->width, img->height, img->width * img->colors, img->colors, interp_mode,
               is16bit);
-
-    write_jpeg(outputImg,img->width,img->height,img->colors,output,quality);
   }
-  else{
-    write_jpeg(img->data,img->width,img->height,img->colors,output,quality);
-  }
+  write_jpeg(outputImg,img->width,img->height,img->colors,output,quality);
   
 
   libraw_close(iprc);
