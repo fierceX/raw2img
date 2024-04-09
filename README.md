@@ -4,15 +4,15 @@
 在此基础上，集成了由 [cpuimage 整理自 FFmpeg 中的3D lut处理算法](https://github.com/cpuimage/FFmpeg_Lut3D)。
 
 ## 编译
-需要安装libraw库和jpeg库，然后在此目录下运行：
+需要安装`libraw`库和`jpeg`以及`lcms2`库，然后在此目录下运行：
 ```
-make
+sh build.sh
 ```
-即可完成编译，生成可执行文件`raw2jpg`。
+该编译过程为静态编译，编译完成后，生成可执行文件`raw2jpg`，若不需要进行静态编译，则在`Makefile`文件中删除`-static`标记。
 
 ## 使用
 ```
-RAW 转换 JPG 工具，基于 Libraw 库：
+RAW 转换 JPG 工具，基于 Libraw 库，支持 3d lut：
          -a：使用自动白平衡
          -w：使用相机设置的白平衡
          -h：输出尺寸减半

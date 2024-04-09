@@ -1,0 +1,1 @@
+make GIT_SHA1="\"$(git log --format='[sha1]:%h [author]:%cn [time]:%ci [commit]:%s [branch]:%d' -1)\""

@@ -92,7 +92,8 @@ float exposure_shift(libraw_processed_image_t *img)
     fprintf(stderr, "libraw  %s\n",libraw_strerror(ret)); \
   }
 
-#define HELP printf("RAW 转换 JPG 工具，基于 Libraw 库：\n\t -a：使用自动白平衡\n\t -w：使用相机设置的白平衡\n\t -h：输出尺寸减半\n\t -i：输入文件路径\n\t -o：输出文件路径\n\t -e：曝光偏移，值范围为 0.25-8，从降低两档到提升三档。当该值指定时，自动曝光偏移将不起作用\n\t -q：输出 JPG 质量，值范围 0-100\n\t -l：使用 lut 文件滤镜\n\t -n：降噪参数。当指定该值时，自动降噪将不起作用\n例如：raw2jpg -w -h -i input.RW2 -o output.jpg -e 2 -q 90\n");
+#define HELP printf("RAW 转换 JPG 工具，基于 Libraw 库，支持 3d lut：\n\t -a：使用自动白平衡\n\t -w：使用相机设置的白平衡\n\t -h：输出尺寸减半\n\t -i：输入文件路径\n\t -o：输出文件路径\n\t -e：曝光偏移，值范围为 0.25-8，从降低两档到提升三档。当该值指定时，自动曝光偏移将不起作用\n\t -q：输出 JPG 质量，值范围 0-100\n\t -l：使用 lut 文件滤镜\n\t -n：降噪参数。当指定该值时，自动降噪将不起作用\n例如：raw2jpg -w -h -i input.RW2 -o output.jpg -e 2 -q 90\n");
+#define VERSION printf("raw2jpg version 0.1 \nGithub: https://github.com/fierceX/raw2jpg \nGit: %s\n",GIT_SHA1);
 
 int main(int argc, char *argv[])
 {
@@ -117,9 +118,12 @@ int main(int argc, char *argv[])
 
   opterr = 0;
 
-  while ((c = getopt(argc, argv, "awhi:o:e:q:l:n:")) != -1)
+  while ((c = getopt(argc, argv, "vawhi:o:e:q:l:n:")) != -1)
     switch (c)
     {
+    case 'v':
+      VERSION;
+      return 0;
     case 'a':
       use_auto_wb = 1;
       break;
@@ -154,9 +158,11 @@ int main(int argc, char *argv[])
       break;
     case '?':
       printf("无法解析参数：%c\n",optopt);
+      VERSION;
       HELP;
       return 1;
     default:
+      VERSION;
       HELP;
       return 1;
     }

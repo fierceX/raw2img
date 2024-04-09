@@ -1,20 +1,14 @@
-CFLAGS=-O3 -I. -w -march=native
 CC=clang
-CXX=g++
+CFLAGS=-O3 -I. -w -march=native
+CFLAGS+=-static
 
-CFLAGS+=-DUSE_ZLIB
-LDADD+=-lz
-
+CFLAGS+=-DUSE_ZLIB -DUSE_JPEG -DUSE_JPEG8
 CFLAGS+=-I/usr/local/include/
-LDADD+=-L/usr/local/lib -static -lraw
 
-LDADD+=-L/usr/local/lib -static -llcms2
+LDADD+=-L/usr/local/lib -lraw -llcms2 -ljpeg -lz
 
-CFLAGS+=-DUSE_JPEG -I/usr/local/include
-LDADD+=-L/usr/local/lib -static -ljpeg 
-CFLAGS+=-DUSE_JPEG8
-
+GIT_SHA1=""
 CSTFLAGS=$(CFLAGS) -DLIBRAW_NOTHREADS
 
 bin: main.c lut3d.c
-	${CC} -DLIBRAW_NOTHREADS  ${CFLAGS} -o raw2jpg main.c lut3d.c -lm -lstdc++ ${LDADD}
+	${CC} -DLIBRAW_NOTHREADS  ${CFLAGS} -o raw2jpg main.c lut3d.c -lm -lstdc++ ${LDADD} -DGIT_SHA1=\"${GIT_SHA1}\"
