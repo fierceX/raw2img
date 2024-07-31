@@ -4,7 +4,8 @@
 #include <getopt.h>
 #include <math.h>
 #include "libraw/libraw.h"
-#include "jpeglib.h"
+#include "stb_image_write.h"
+// #include "jpeglib.h"
 
 #include "lut3d.h"
 

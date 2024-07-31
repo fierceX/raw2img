@@ -4,7 +4,8 @@
 #include <getopt.h>
 #include <math.h>
 #include "libraw/libraw.h"
-#include "jpeglib.h"
+// #include "jpeglib.h"
+#include "stb_image_write.h"
 
 #include "lut3d.h"
 
@@ -55,42 +56,42 @@ float exposure_shift(libraw_processed_image_t *img)
   }
 
 
-void write_jpeg(char * img,int width, int height, int colors,const char *outout, int quality)
-{
-  if (colors != 1 && colors != 3)
-  {
-    printf("Only BW and 3-color images supported for JPEG output\n");
-    return;
-  }
+// void write_jpeg(char * img,int width, int height, int colors,const char *outout, int quality)
+// {
+//   if (colors != 1 && colors != 3)
+//   {
+//     printf("Only BW and 3-color images supported for JPEG output\n");
+//     return;
+//   }
 
-  FILE *f = fopen(outout, "wb");
-  if (!f)
-    return;
-  struct jpeg_compress_struct cinfo;
-  struct jpeg_error_mgr jerr;
-  JSAMPROW row_pointer[1]; /* pointer to JSAMPLE row[s] */
-  int row_stride;          /* physical row width in image buffer */
+//   FILE *f = fopen(outout, "wb");
+//   if (!f)
+//     return;
+//   struct jpeg_compress_struct cinfo;
+//   struct jpeg_error_mgr jerr;
+//   JSAMPROW row_pointer[1]; /* pointer to JSAMPLE row[s] */
+//   int row_stride;          /* physical row width in image buffer */
 
-  cinfo.err = jpeg_std_error(&jerr);
-  jpeg_create_compress(&cinfo);
-  jpeg_stdio_dest(&cinfo, f);
-  cinfo.image_width = width; /* image width and height, in pixels */
-  cinfo.image_height = height;
-  cinfo.input_components = colors;                              /* # of color components per pixel */
-  cinfo.in_color_space = colors == 3 ? JCS_RGB : JCS_GRAYSCALE; /* colorspace of input image */
-  jpeg_set_defaults(&cinfo);
-  jpeg_set_quality(&cinfo, quality, TRUE);
-  jpeg_start_compress(&cinfo, TRUE);
-  row_stride = width * colors; /* JSAMPLEs per row in image_buffer */
-  while (cinfo.next_scanline < cinfo.image_height)
-  {
-    row_pointer[0] = &img[cinfo.next_scanline * row_stride];
-    (void)jpeg_write_scanlines(&cinfo, row_pointer, 1);
-  }
-  jpeg_finish_compress(&cinfo);
-  fclose(f);
-  jpeg_destroy_compress(&cinfo);
-}
+//   cinfo.err = jpeg_std_error(&jerr);
+//   jpeg_create_compress(&cinfo);
+//   jpeg_stdio_dest(&cinfo, f);
+//   cinfo.image_width = width; /* image width and height, in pixels */
+//   cinfo.image_height = height;
+//   cinfo.input_components = colors;                              /* # of color components per pixel */
+//   cinfo.in_color_space = colors == 3 ? JCS_RGB : JCS_GRAYSCALE; /* colorspace of input image */
+//   jpeg_set_defaults(&cinfo);
+//   jpeg_set_quality(&cinfo, quality, TRUE);
+//   jpeg_start_compress(&cinfo, TRUE);
+//   row_stride = width * colors; /* JSAMPLEs per row in image_buffer */
+//   while (cinfo.next_scanline < cinfo.image_height)
+//   {
+//     row_pointer[0] = &img[cinfo.next_scanline * row_stride];
+//     (void)jpeg_write_scanlines(&cinfo, row_pointer, 1);
+//   }
+//   jpeg_finish_compress(&cinfo);
+//   fclose(f);
+//   jpeg_destroy_compress(&cinfo);
+// }
 
 
 void RawProcess(char * input,char * output,int use_camera_wb,int use_auto_wb,int half_size,float exp_shift,bool exp_shift_flag,bool threshold_flag,float threshold,bool lut,char *lut_file){
@@ -157,7 +158,9 @@ void RawProcess(char * input,char * output,int use_camera_wb,int use_auto_wb,int
     // *width = img->width;
     // *height = img->height;
     // *colors = img->colors;
-    write_jpeg(outputImg,img->width,img->height,img->colors,output,100);
+    // write_jpeg(outputImg,img->width,img->height,img->colors,output,100);
+    stbi_write_jpg(output,img->width,img->height,img->colors,outputImg,100);
+    // saveFile, Width, Height, Channels, Output, 100)
 
     libraw_close(iprc);
 
