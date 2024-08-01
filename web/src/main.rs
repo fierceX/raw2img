@@ -16,7 +16,7 @@ struct Parameters {
 async fn getluts() -> Vec<(String, String)> {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
     let url = format!("{}/luts", base_url);
-    let url = format!("http://127.0.0.1:8081/luts");
+    // let url = format!("http://127.0.0.1:8081/luts");
     let body: Vec<String> = reqwest::Client::new()
         .get(&url)
         .send()
@@ -36,7 +36,7 @@ async fn getluts() -> Vec<(String, String)> {
 async fn getrawfiles() -> Vec<(String, String)> {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
     let url = format!("{}/rawfiles", base_url);
-    let url = format!("http://127.0.0.1:8081/rawfiles");
+    // let url = format!("http://127.0.0.1:8081/rawfiles");
     let body: Vec<String> = reqwest::Client::new()
         .get(&url)
         .send()
@@ -55,7 +55,7 @@ async fn getrawfiles() -> Vec<(String, String)> {
 
 async fn get_jpg(params: Parameters) -> String {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("http://127.0.0.1:8081/raw2jpg");
+    // let url = format!("http://127.0.0.1:8081/raw2jpg");
     log::info!("{:?}", params);
     let url = format!("{}/raw2jpg", base_url);
     let body: String = reqwest::Client::new()
