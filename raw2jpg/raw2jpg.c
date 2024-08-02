@@ -5,6 +5,7 @@
 #include <math.h>
 #include "libraw/libraw.h"
 // #include "jpeglib.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 #include "lut3d.h"
@@ -141,7 +142,7 @@ void RawProcess(char * input,char * output,int use_camera_wb,int use_auto_wb,int
     char *outputImg = img->data;
 
     if(lut){
-        char *outputImg = (unsigned char *) malloc(img->data_size * sizeof(unsigned char));
+        outputImg = (unsigned char *) malloc(img->data_size * sizeof(unsigned char));
         // memcpy(outputImg, img->data, img->data_size);
 
         int is16bit = 0;
