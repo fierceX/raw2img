@@ -1,0 +1,13 @@
+[package]
+name = "raw"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = "0.25"
+libraw_rs_vendor = "1.0.0"
+rayon = "1.10"
+webp = "0.3"
+
+[lib]
+path = "src/raw.rs"

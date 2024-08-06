@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use chrono::{DateTime, Utc};
 
+use raw::raw_process;
+
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 #[derive(Debug, MultipartForm)]
@@ -59,46 +61,13 @@ async fn raw2jpg(session: Session, parames: web::Json<Parameters>) -> HttpRespon
         );
         hasher.finalize_variable(&mut buf).unwrap();
         // log::info!("{}", out_file);
-        let out_file_path = format!("{}/{}.jpg",dir_path, base16ct::lower::encode_string(&buf));
+        let out_file_path = format!("{}/{}.webp",dir_path, base16ct::lower::encode_string(&buf));
         log::info!("{}",out_file_path);
         if let Ok(_) = fs::metadata(out_file_path.clone()) {
             HttpResponse::Ok().json(out_file_path)
         } else {
             log::info!("{}: {:?}",userid, parames);
-            let mut args = Vec::new();
-
-            if parames.lut != "No Lut".to_string(){
-                args.push("-l".to_string());
-                args.push(format!("./lut/{}.cube", parames.lut));
-            }
-
-            if parames.wb {
-                args.push("-a".to_string());
-            } else {
-                args.push("-w".to_string());
-            }
-
-            if parames.exp_shift != -3.0 {
-                args.push("-e".to_string());
-                args.push(format!("{}", f64::powf(2.0, parames.exp_shift)));
-            }
-
-            if parames.threshold != -1 {
-                args.push("-n".to_string());
-                args.push(format!("{}", parames.threshold));
-            }
-
-            args.push("-i".to_string());
-            args.push(intput_file_path);
-
-            args.push("-o".to_string());
-            args.push(out_file_path.clone());
-
-            let a = Command::new("raw2jpg").args(args).output().unwrap();
-            if a.status.success() {
-                log::info!("aaabbbccc");
-                log::info!("{:?}\n{:?}",String::from_utf8(a.stdout),String::from_utf8(a.stderr));
-            }
+            let _ = raw_process(intput_file_path,out_file_path.clone(),format!("./lut/{}.cube", parames.lut),parames.wb,false,parames.exp_shift as f32,parames.threshold,90);
             HttpResponse::Ok().json(out_file_path)
         }
     } else {

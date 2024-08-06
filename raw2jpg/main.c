@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
   // char * outputImage;
   // int width,height,colors;
 
-  RawProcess(input,output,use_camera_wb,use_auto_wb,half_size,exp_shift,exp_shift_flag,threshold_flag,threshold,lut,lut_file);
+  RawProcess(input,output,use_camera_wb,use_auto_wb,half_size,exp_shift,exp_shift_flag,threshold_flag,threshold,lut,lut_file,quality);
 
   // write_jpeg(outputImage,width,height,colors,output,quality);
 

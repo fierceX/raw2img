@@ -7,6 +7,7 @@
 // #include "jpeglib.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "webp/encode.h"
 
 #include "lut3d.h"
 
@@ -26,7 +27,7 @@ float exposure_shift(libraw_processed_image_t *img)
   int j = 0;
   for (int i = 0; i < img->data_size; i++)
   {
-    if(img->data[i] < MAX_BRIGHTNESS && img->data[i] > MIN_BRIGHTNESS){
+    if(img->data[i] < 22 && img->data[i] > MIN_BRIGHTNESS){
       mean_brightness += img->data[i];
       j++;
     }
@@ -95,7 +96,7 @@ float exposure_shift(libraw_processed_image_t *img)
 // }
 
 
-void RawProcess(char * input,char * output,int use_camera_wb,int use_auto_wb,int half_size,float exp_shift,bool exp_shift_flag,bool threshold_flag,float threshold,bool lut,char *lut_file){
+void RawProcess(char * input,char * output,int use_camera_wb,int use_auto_wb,int half_size,float exp_shift,bool exp_shift_flag,bool threshold_flag,float threshold,bool lut,char *lut_file,int quality){
     int i;
     libraw_data_t *iprc = libraw_init(0);
 
@@ -160,7 +161,17 @@ void RawProcess(char * input,char * output,int use_camera_wb,int use_auto_wb,int
     // *height = img->height;
     // *colors = img->colors;
     // write_jpeg(outputImg,img->width,img->height,img->colors,output,100);
-    stbi_write_jpg(output,img->width,img->height,img->colors,outputImg,100);
+    // stbi_write_png(output,img->width,img->height,img->colors,outputImg,img->width * img->colors);
+    stbi_write_jpg(output,img->width,img->height,img->colors,outputImg,quality);
+    // char * webpout;
+    // size_t res = WebPEncodeRGB(outputImg, img->width,img->height, img->width * img->colors,
+    //                  quality, &webpout);
+    // FILE *f = fopen(output,"wb");
+    // // for(i)
+    // fwrite(webpout, 1, res, f);
+    // fclose(f);
+    // WebPFree(webpout);
+    
     // saveFile, Width, Height, Channels, Output, 100)
 
     libraw_close(iprc);
