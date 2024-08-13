@@ -8,6 +8,9 @@ image = "0.25"
 libraw_rs_vendor = "1.0.0"
 rayon = "1.10"
 webp = "0.3"
+jpeg-encoder = "0.3.0"
+kamadak-exif = "0.5.5"
+img-parts = "0.3.0"
 
 [lib]
 path = "src/raw.rs"

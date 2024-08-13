@@ -3,17 +3,97 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Motion | Sycamore</title>
+    <title>Raw2Img</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"> -->
+
     <!-- <link rel="stylesheet" href="https://unpkg.com/nexmoe.css"> -->
     <!-- <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css"> -->
+    <style>
+
+      .image-container {
+          position: relative;
+          cursor: pointer;
+      }
+
+      .image-container img {
+          width: 150px;
+          transition: transform 0.3s ease-in-out;
+      }
+
+      .image-container img.zoomed {
+        position: fixed;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            object-fit: contain;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+      .button-container-prev {
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            height: 80%;
+            width: 40%;
+            display: flex;
+            justify-content: space-between;
+            z-index: 1001;
+        }
+
+        .button-container-prev button {
+            background-color: rgba(0, 0, 0, 0);
+            color: white;
+            border: none;
+            padding: 10%;
+            cursor: pointer;
+        }
+        .button-container-next {
+            position: fixed;
+            top: 10%;
+            left: 82%;
+            height: 80%;
+            width: 40%;
+            display: flex;
+            justify-content: space-between;
+            z-index: 1001;
+        }
+
+        .button-container-next button {
+            background-color: rgba(0, 0, 0, 0);
+            color: white;
+            border: none;
+            padding: 10%;
+            cursor: pointer;
+        }
+
+        
+        .custom-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem; /* 调整间距 */
+        }
+        .custom-grid > * {
+            height: 350px;
+            overflow: hidden; /* 防止图片溢出 */
+        }
+        .custom-grid img {
+            height: 200px;
+            object-fit: contain; /* 按比例缩放，确保图片完全包含在容器内 */
+        }
+    
+    
+  </style>
   </head>
   <body>
     <header class="container">
       <hgroup>
-        <h1>Raw2Jpg</h1>
-        <p>Raw格式文件转换Jpg工具</p>
+        <h1>Raw2Img</h1>
+        <p>Raw格式文件转换Img工具</p>
       </hgroup>
     </header>
   </body>
