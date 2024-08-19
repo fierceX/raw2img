@@ -69,7 +69,7 @@ async fn get_jpg(params: Parameters) -> String {
     // let url = format!("http://127.0.0.1:8081/raw2jpg");
     log::info!("{:?}", params);
     let url = format!("{}/raw2jpg", base_url);
-    let body: String = reqwest::Client::new()
+    reqwest::Client::new()
         .post(&url)
         .json(&params)
         .send()
@@ -77,8 +77,8 @@ async fn get_jpg(params: Parameters) -> String {
         .unwrap()
         .json()
         .await
-        .unwrap();
-    format!("{}/{}", base_url, body)
+        .unwrap()
+    // format!("{}/{}", base_url, body)
 }
 
 async fn save_jpg(url_file: String, filename: String) {

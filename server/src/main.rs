@@ -1,5 +1,5 @@
 use actix_cors::Cors;
-use actix_files::Files;
+use actix_files::{Files, NamedFile};
 use actix_multipart::{
     form::{
         tempfile::{TempFile, TempFileConfig},
@@ -24,7 +24,7 @@ use exif::{In, Tag, Value};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::{self, File},
+    fs::{self, File}, path::Path,
 };
 
 use raw::raw_process;
@@ -81,14 +81,15 @@ async fn raw2jpg(session: Session, parames: web::Json<Parameters>) -> HttpRespon
             hasher.finalize_variable(&mut buf).unwrap();
 
             let _ = std::fs::create_dir_all(format!("{}/tmp/", dir_path));
+            let out_file_name = format!("tmp/{}.jpg", base16ct::lower::encode_string(&buf));
             let out_file_path = format!(
-                "{}/tmp/{}.jpg",
+                "{}/{}",
                 dir_path,
-                base16ct::lower::encode_string(&buf)
+                out_file_name
             );
 
             if let Ok(_) = fs::metadata(out_file_path.clone()) {
-                HttpResponse::Ok().json(out_file_path)
+                HttpResponse::Ok().json(format!("/img/{}",out_file_name))
             } else {
                 let _ = raw_process(
                     intput_file_path,
@@ -100,7 +101,7 @@ async fn raw2jpg(session: Session, parames: web::Json<Parameters>) -> HttpRespon
                     parames.threshold,
                     90,
                 );
-                HttpResponse::Ok().json(out_file_path)
+                HttpResponse::Ok().json(format!("/img/{}",out_file_name))
             }
         } else {
             HttpResponse::NotFound().finish()
@@ -241,7 +242,7 @@ async fn get_rawfiles(session: Session) -> HttpResponse {
                         shutter: shutter,
                         focal_len: focal_len.into(),
                         filename: file_name.to_owned(),
-                        url: format!("tmp/{}/{}.jpg", userid, file_name),
+                        url: format!("/img/{}.jpg", file_name),
                     };
                     jpgs.insert(_exif.filename.clone(), _exif);
                 } else {
@@ -272,6 +273,24 @@ async fn get_rawfiles(session: Session) -> HttpResponse {
     HttpResponse::Ok().json(res)
 }
 
+async fn get_image(session: Session,url:web::Path<String>) -> Result<impl Responder,Error>{
+    log::info!("bbffdd");
+    if let Ok(Some(userid)) = session.get::<String>("userid") {
+        
+        let path = format!("tmp/{}/{}", userid,url);
+        log::info!("{}",path);
+        if Path::new(&path).exists() {
+            Ok(NamedFile::open(path).unwrap())
+        } else {
+            Err(actix_web::error::ErrorNotFound("Image not found"))
+        }
+    }
+    else {
+        Err(actix_web::error::ErrorNotFound("Image not found"))
+    }
+    
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -292,12 +311,12 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(Cors::permissive())
             .app_data(TempFileConfig::default().directory("./tmp"))
-            .service(Files::new("/tmp", "./tmp/"))
             .service(web::resource("/upfile").route(web::post().to(save_files)))
             .service(web::resource("/rawfiles").route(web::get().to(get_rawfiles)))
             .service(web::resource("/raw2jpg").route(web::post().to(raw2jpg)))
             .service(web::resource("/luts").route(web::get().to(find_lut)))
             .service(web::resource("/save").route(web::post().to(savejpg)))
+            .service(web::resource("/img/{path:.*}").route(web::get().to(get_image)))
             .service(ResourceFiles::new("/", generated))
     })
     .bind(("0.0.0.0", 8081))?
