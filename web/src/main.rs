@@ -10,6 +10,16 @@ mod pages;
 
 use pages::{home, login};
 
+// #[derive(Clone, Copy, PartialEq, Eq)]
+// struct UserId(i32);
+
+// impl UserId {
+//     fn is_enabled(self) -> bool {
+//         self.0
+//     }
+// }
+
+
 
 
 #[derive(Route)]
@@ -23,14 +33,18 @@ enum AppRoutes {
 }
 
 
-async fn check_auth() -> bool{
-    let res = reqwest::Client::new().post("http://127.0.0.1:8081/api/check_auth")
+async fn check_auth() -> (bool,i32){
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let url = "/api/check_auth";
+    let url = format!("{}/api/check_auth",web_sys::window().unwrap().location().origin().unwrap());
+    let res = reqwest::Client::new().post(url)
     .send().await.unwrap();
     if res.status() == StatusCode::OK{
-        true
+        let user_id:String = res.json().await.unwrap();
+        (true,user_id.parse().unwrap())
     }
     else{
-        false
+        (false,-1)
     }
 }
 
@@ -66,7 +80,16 @@ async fn test_g() {
 #[component]
 async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
     let is_auth = create_signal(cx, true);
+    let user_id = create_rc_signal(-1i32);
+    
+    
     // is_auth.set(check_auth().await);
+    let (_is_auth,_user_id) = check_auth().await;
+    
+    user_id.set(_user_id);
+    is_auth.set(_is_auth);
+    log::info!("{} {}",is_auth,user_id);
+    provide_context(cx,user_id);
     view! {cx,
         Router(
             integration=HistoryIntegration::new(),
@@ -76,11 +99,6 @@ async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
                         (match route.get().as_ref() {
                             AppRoutes::Home => view! { cx,
                                 Header()
-                                // button(on:click=move |_| {
-                                //     spawn_local_scoped(cx, async move {
-                                //         test_g().await;
-                                //     })
-                                // })
                                 main(class="container"){
                                     div{
                                     home::Body()
@@ -127,6 +145,7 @@ async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
 // }
 
 fn main() {
+    
     console_log::init_with_level(log::Level::Debug).unwrap();
     sycamore::render(|cx| view! { cx, App {} });
 }

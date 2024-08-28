@@ -14,7 +14,8 @@ pub fn login<G: Html>(cx: Scope) -> View<G> {
             button(type="submit",on:click=move|_|{
                 spawn_local_scoped(cx, async move {
                 // log::info!("u:{} p:{}",username,password);
-                let res = reqwest::Client::new().post("http://127.0.0.1:8081/auth")
+                let url = format!("{}/auth",web_sys::window().unwrap().location().origin().unwrap());
+                let res = reqwest::Client::new().post(url)
                 .form(&[("username",username.get().to_string()),("password",password.get().to_string())])
                 .send().await.unwrap();
                 if res.status() == StatusCode::OK{

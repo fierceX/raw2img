@@ -40,6 +40,12 @@ struct FormData {
     password: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct FormData2 {
+    username: String,
+    password: String,
+}
+
 #[derive(Debug, MultipartForm)]
 struct UploadForm {
     #[multipart(rename = "file")]
@@ -80,7 +86,26 @@ async fn graphql_playground() -> impl Responder {
 
 #[route("/check_auth", method = "POST")]
 async fn check_auth(session: Session) -> HttpResponse {
-    HttpResponse::Ok().into()
+    // HttpResponse::Ok().into()
+    if let (Ok(Some(userid)), Ok(Some(passkey))) = (
+        session.get::<String>("userid"),
+        session.get::<String>("passkey"),
+    ) {
+        log::info!("v: {} {}", userid, passkey);
+        let key = HS256Key::from_bytes(&"key".try_into_bytes().unwrap());
+        match key.verify_token::<NoCustomClaims>(&passkey, None) {
+            Ok(_claims) => {
+                // let res = next.call(req).await?;
+                // Ok(res)
+                let user_id = _claims.audiences.unwrap().into_string().unwrap();
+                HttpResponse::Ok().json(user_id)
+            }
+            Err(_) => HttpResponse::Unauthorized().body(""),
+        }
+    } else {
+        HttpResponse::Unauthorized().body("")
+    }
+    // HttpResponse::Ok().json("1".to_string())
 }
 
 #[route("/create_user", method = "POST")]
@@ -109,7 +134,8 @@ async fn create_user(
 }
 
 #[route("/auth", method = "POST")]
-async fn auth(session: Session, pool: web::Data<Pool>, form: web::Form<FormData>) -> HttpResponse {
+async fn auth(session: Session, pool: web::Data<Pool>, form: web::Form<FormData2>) -> HttpResponse {
+    log::info!("bbddeevv123");
     let db_conn = pool.get_ref().to_owned();
 
     let (user_id, password): (i32, String) = db_conn
@@ -126,13 +152,14 @@ async fn auth(session: Session, pool: web::Data<Pool>, form: web::Form<FormData>
     hasher.update(form.password.as_bytes());
     let buf = hasher.finalize();
     let input_password = base16ct::lower::encode_string(&buf);
+
     if password == input_password {
         let key = HS256Key::from_bytes(&"key".try_into_bytes().unwrap());
         let claims = Claims::create(Duration::from_hours(2)).with_audience(user_id.to_string());
         let token = key.authenticate(claims).unwrap();
         log::info!("token: {}", token);
         let _r = session.insert("passkey", token);
-        let _r = session.insert("userid", user_id);
+        let _r = session.insert("userid", user_id.to_string());
 
         // HttpResponse::SeeOther()
         //             .append_header(("Location", "/"))
