@@ -2,22 +2,24 @@ use serde::{Deserialize, Serialize};
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use web_sys::{HtmlInputElement, HtmlOptionElement};
+use graphql_client::{reqwest::post_graphql, GraphQLQuery};
 
 
 
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 struct Parameters {
+    id:i32,
     filename: String,
     lut: String,
     wb: bool,
     exp_shift: f64,
     threshold: i32,
-    url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct Myexif {
+    id:i32,
     iso: i32,
     aperture: f32,
     shutter: f32,
@@ -26,52 +28,80 @@ struct Myexif {
     url: String,
 }
 
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "schemas.json",
+    query_path = "images.graphql",
+    response_derives = "Debug",
+)]
+pub struct ImagesQuery;
+
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "schemas.json",
+    query_path = "storage.graphql",
+    response_derives = "Debug",
+)]
+pub struct StorageQuery;
+
+
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "schemas.json",
+    query_path = "luts.graphql",
+    response_derives = "Debug",
+)]
+pub struct LutsQuery;
+
+
 async fn getluts() -> Vec<(String, String)> {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("{}/api/luts", base_url);
-    // let url = format!("http://127.0.0.1:8081/luts");
-    let body: Vec<String> = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let mut luts = Vec::new();
-    luts.push(("No Lut".to_string(), "No Lut".to_string()));
-    for i in body {
-        luts.push((i.clone(), i));
-    }
-    luts
+    // let url = format!("{}/api/graphql", base_url);
+    let url = format!("http://127.0.0.1:8081/api/graphql");
+    let client = reqwest::Client::new();
+    let variables = luts_query::Variables{};
+    let response_body = 
+        post_graphql::<LutsQuery, _>(&client, &url, variables).await.unwrap();
+    log::info!("{:?}",response_body);
+    let response_data: luts_query::ResponseData = response_body.data.expect("missing response data");
+    response_data.luts.iter().map(|x| (format!("{}/{}",x.path.clone(),x.lut_name.clone()),x.lut_name.clone())).collect()
 }
 
 async fn getrawfiles() -> Vec<(usize, Myexif)> {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("{}/api/rawfiles", base_url);
-    // let url = format!("http://127.0.0.1:8081/rawfiles");
-    let body: Vec<Myexif> = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    // body
-    let mut rawfiles = Vec::new();
-    // rawfiles.push(("No Lut".to_string(),"No Lut".to_string()));
-    for i in 0..body.len() {
-        rawfiles.push((i, body[i].clone()));
-    }
-    rawfiles
+    // let url = format!("{}/api/graphql", base_url);
+    let url = format!("http://127.0.0.1:8081/api/graphql");
+    
+    let client = reqwest::Client::new();
+    let variables = images_query::Variables {
+        id: "1".to_string(),
+    };
+    let response_body = 
+        post_graphql::<ImagesQuery, _>(&client, &url, variables).await.unwrap();
+    log::info!("{:?}",response_body);
+    let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
+    response_data.user.images.iter().enumerate().map(|(i,x)| (i,Myexif{
+        id:x.id as i32,
+        iso:0,
+        aperture: 0.0,
+        shutter: 0.0,
+        focal_len: 0,
+        filename: x.file_name.clone(),
+        url: format!("http://127.0.0.1:8081{}",x.cached_url.clone()),
+    })).collect()
+    // println!("{:?}",response_data.user.images[1].cache_file_name);
+
+    // log::info!("{:?}",response_data.user.images);
 }
 
 async fn get_jpg(params: Parameters) -> String {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    // let url = format!("http://127.0.0.1:8081/raw2jpg");
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    let url = format!("http://127.0.0.1:8081/api/raw2jpg");
     log::info!("{:?}", params);
-    let url = format!("{}/api/raw2jpg", base_url);
+    // let url = format!("{}/api/raw2jpg", base_url);
     reqwest::Client::new()
         .post(&url)
         .json(&params)
@@ -84,14 +114,14 @@ async fn get_jpg(params: Parameters) -> String {
     // format!("{}/api/{}", base_url, body)
 }
 
-async fn save_jpg(url_file: String, filename: String) {
+async fn save_jpg(url_file: String, image_id: i32) {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    // let url = format!("http://127.0.0.1:8081/raw2jpg");
+    let url = format!("http://127.0.0.1:8081/api/save");
     // log::info!("{:?}", params);
-    let url = format!("{}/api/save", base_url);
+    // let url = format!("{}/api/save", base_url);
     reqwest::Client::new()
         .post(&url)
-        .json(&(url_file, filename))
+        .json(&(url_file, image_id))
         .send()
         .await
         .unwrap();
@@ -166,6 +196,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             //     .unchecked_into::<HtmlOptionElement>()
             //     .value();
             let filename = images.get()[*current_index.get()].1.filename.clone();
+            let image_id = images.get()[*current_index.get()].1.id.clone();
             let wb = auto_wb_ref
                 .get::<DomNode>()
                 .unchecked_into::<HtmlInputElement>()
@@ -199,12 +230,12 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             let filename_ = filename.clone();
             img_url.set(
                 get_jpg(Parameters {
+                    id:image_id,
                     filename,
                     lut,
                     wb,
                     exp_shift: exp_shift_,
                     threshold: threshold_,
-                    url: "".to_string(),
                 })
                 .await,
             );
@@ -223,15 +254,16 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 .last()
                 .unwrap()
                 .to_string();
-            let file_name = images.get()[*current_index.get()].1.filename.clone();
-            save_jpg(url_file, file_name).await;
+            // let file_name = images.get()[*current_index.get()].1.filename.clone();
+            let image_id = images.get()[*current_index.get()].1.id.clone();
+            save_jpg(url_file, image_id).await;
             images.set(getrawfiles().await);
             is_edit.set(false);
         })
     };
 
     let luts = create_signal(cx, getluts().await);
-
+    // let luts: &Signal<Vec<(String,String)>> = create_signal(cx, Vec::new());
     view! {cx,
         div(class="grid",hidden=*is_zoomed.get()){
             fieldset(role="group"){
@@ -240,8 +272,8 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 button(aria-busy=*loading.get(),on:click = move|_|{
                     spawn_local_scoped(cx, async move {
                         loading.set(true);
-                        let up_url = format!("{}/api/upfile",web_sys::window().unwrap().location().origin().unwrap());
-                        // let up_url = "http://127.0.0.1:8081/upfile";
+                        // let up_url = format!("{}/api/upfile",web_sys::window().unwrap().location().origin().unwrap());
+                        let up_url = "http://127.0.0.1:8081/api/uplut";
                         let filelist = upfile_ref
                         .get::<DomNode>()
                         .unchecked_into::<HtmlInputElement>().files().unwrap();

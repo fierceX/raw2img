@@ -1,0 +1,17 @@
+query StorageQuery($id: String!) {
+  user(id: $id) {
+    id
+    storages {
+      accessKey
+      addedTime
+      bucketName
+      id
+      storageUsage
+      secretKey
+      storageName
+      storagePath
+      storageType
+      storageUrl
+    }
+  }
+}

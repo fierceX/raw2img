@@ -1,0 +1,8 @@
+query LutsQuery {
+  luts {
+    comment
+    id
+    lutName
+    path
+  }
+}

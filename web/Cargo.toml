@@ -13,5 +13,6 @@ console_log = "0.2.0"
 log = "0.4.17"
 reqwasm = "0.5.0"
 web-sys = {version = "0.3.69",features = ["HtmlOptionElement","HtmlInputElement","FileList"]}
-reqwest = {version = "0.12.5",features = ["json","multipart"]}
+reqwest = {version = "0.11.3",features = ["json","multipart"]}
+graphql_client = {version = "0.14.0",features = ["reqwest"]}
 serde = "1.0.147"
