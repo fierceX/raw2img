@@ -1,0 +1,15 @@
+query ImagesQuery($id: String!) {
+  user(id: $id) {
+    id
+    images {
+      cacheFileName
+      cachedUrl
+      fileName
+      fileSize
+      id
+      mimeType
+      originalUrl
+      scanTime
+    }
+  }
+}
