@@ -1,6 +1,12 @@
 query ImagesQuery($id: String!) {
   user(id: $id) {
     id
+    name
+    email
+    wb
+    halfSize
+    quality
+    lutId
     images {
       cacheFileName
       cachedUrl
@@ -10,6 +16,7 @@ query ImagesQuery($id: String!) {
       mimeType
       originalUrl
       scanTime
+      exif
     }
   }
 }

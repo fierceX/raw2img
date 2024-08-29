@@ -8,7 +8,7 @@ use graphql_client::{reqwest::post_graphql, GraphQLQuery};
 
 mod pages;
 
-use pages::{home, login};
+use pages::{home, login, setting};
 
 // #[derive(Clone, Copy, PartialEq, Eq)]
 // struct UserId(i32);
@@ -19,8 +19,16 @@ use pages::{home, login};
 //     }
 // }
 
-
-
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+struct User {
+    id:i32,
+    name:String,
+    email: String,
+    wb: bool,
+    halfSize:bool,
+    quality:i32,
+    lutId:i32,
+}
 
 #[derive(Route)]
 enum AppRoutes {
@@ -28,6 +36,8 @@ enum AppRoutes {
     Home,
     #[to("/login")]
     Login,
+    #[to("/setting")]
+    Setting,
     #[not_found]
     NotFound,
 }
@@ -52,27 +62,12 @@ fn Header<G: Html>(cx: Scope) -> View<G>{
     view!{cx,
     header(class="container"){
       hgroup{
-        h1{"Raw2Img"}
+        a(href = "/"){h1{"Raw2Img"}}
         p{"Raw格式文件转换Img工具"}
       }
+      a(href="/setting"){h1{"设置"}}
     }
     }
-}
-
-
-async fn test_g() {
-    // let client = reqwest::Client::new();
-    // let variables = images_query::Variables {
-    //     id: "1".to_string(),
-    // };
-    // let response_body = 
-    //     post_graphql::<ImagesQuery, _>(&client, "http://127.0.0.1:8081/api/graphql", variables).await.unwrap();
-    // // println!("{:?}",response_body);
-    // let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
-    // // println!("{:?}",response_data.user.images[1].cache_file_name);
-
-    // log::info!("{:?}",response_data.user.images);
-    
 }
 
 
@@ -81,10 +76,10 @@ async fn test_g() {
 async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
     let is_auth = create_signal(cx, true);
     let user_id = create_rc_signal(-1i32);
-    
-    
-    // is_auth.set(check_auth().await);
+
     let (_is_auth,_user_id) = check_auth().await;
+    // let _is_auth = true;
+    // let _user_id = 1;
     
     user_id.set(_user_id);
     is_auth.set(_is_auth);
@@ -111,6 +106,14 @@ async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
                                     div{
                                 login::login()
                                 }}
+                            },
+                            AppRoutes::Setting => view! {cx,
+                                Header()
+                                main(class="container"){
+                                    div{
+                                    setting::Body()
+                                    }
+                                }
                             },
                             AppRoutes::NotFound => view! { cx,
                                 "404 Not Found"

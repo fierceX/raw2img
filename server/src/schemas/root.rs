@@ -4,6 +4,7 @@ use juniper::{
     graphql_value, FieldError, FieldResult,
 };
 use chrono::prelude::*;
+use rusqlite::params;
 use crate::db::Pool;
 
 use super::image::Image;
@@ -31,6 +32,10 @@ impl QueryRoot {
                 id: row.get(0).unwrap(),
                 name: row.get(1).unwrap(),
                 email: row.get(2).unwrap(),
+                wb: row.get(4).unwrap(),
+                half_size: row.get(5).unwrap(),
+                quality: row.get(6).unwrap(),
+                lut_id: row.get(7).unwrap_or(-1),
             })
         }).unwrap().into_iter().filter_map(Result::ok).collect();
 
@@ -44,9 +49,13 @@ impl QueryRoot {
 
         let res = conn.query_row("select * from users where id = :id;", &[(":id",&id)], |row|{
             Ok(User{
-                id:row.get(0).unwrap(),
-                name:row.get(1).unwrap(),
-                email:row.get(2).unwrap(),
+                id: row.get(0).unwrap(),
+                name: row.get(1).unwrap(),
+                email: row.get(2).unwrap(),
+                wb: row.get(4).unwrap(),
+                half_size: row.get(5).unwrap(),
+                quality: row.get(6).unwrap(),
+                lut_id: row.get(7).unwrap_or(-1),
             })
         });
         if let Err(_err) = res{
@@ -125,12 +134,13 @@ impl QueryRoot {
                 id: row.get(0).unwrap(),
                 user_id: row.get(1).unwrap(),
                 file_name: row.get(2).unwrap(),
-                cache_file_name: row.get(3).unwrap(),
+                cache_file_name: row.get(3).unwrap_or("".to_string()),
                 scan_time: row.get(4).unwrap(),
                 file_size: row.get(5).unwrap(),
                 mime_type: row.get(6).unwrap(),
-                original_url: row.get(7).unwrap(),
-                cached_url: row.get(8).unwrap(),
+                exif: row.get(7).unwrap_or("".to_string()),
+                original_url: row.get(8).unwrap(),
+                cached_url: row.get(9).unwrap_or("".to_string()),
             })
         });
         if let Err(_err) = res{
@@ -214,7 +224,7 @@ impl MutationRoot {
     //     }
     // }
 
-    fn create_storage(context: &Context, stoarge: StorageInput) -> FieldResult<Storage> {
+    fn create_storage(context: &Context, storage: StorageInput) -> FieldResult<Storage> {
         let conn = context.db_pool.get().unwrap();
         let now: DateTime<Utc> = Utc::now();
 
@@ -222,23 +232,23 @@ impl MutationRoot {
         let formatted_time = now.format("%Y-%m-%d %H:%M:%S").to_string();
         let res = conn.execute(
             "INSERT INTO storages (user_id,storage_name,storage_path,storage_type,storage_url,added_time,storage_usage) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            (&stoarge.user_id,&stoarge.storage_name, &stoarge.storage_path,&stoarge.storage_type,&stoarge.storage_url,&formatted_time,&stoarge.storage_usage),
+            (&storage.user_id,&storage.storage_name, &storage.storage_path,&storage.storage_type,&storage.storage_url,&formatted_time,&storage.storage_usage),
         );
         match res {
             Ok(_) =>{
                 let _id = conn.last_insert_rowid();
                 Ok(Storage {
                     id: _id as i32,
-                    user_id:stoarge.user_id,
-                    storage_name:stoarge.storage_name,
-                    storage_path:stoarge.storage_path,
-                    storage_type:stoarge.storage_type,
-                    storage_url:stoarge.storage_url,
-                    access_key:stoarge.access_key,
-                    secret_key:stoarge.secret_key,
-                    bucket_name:stoarge.bucket_name,
+                    user_id:storage.user_id,
+                    storage_name:storage.storage_name,
+                    storage_path:storage.storage_path,
+                    storage_type:storage.storage_type,
+                    storage_url:storage.storage_url,
+                    access_key:storage.access_key,
+                    secret_key:storage.secret_key,
+                    bucket_name:storage.bucket_name,
                     added_time:formatted_time,
-                    storage_usage:stoarge.storage_usage,
+                    storage_usage:storage.storage_usage,
                 })
             }
             Err(msg) =>{
@@ -279,6 +289,36 @@ impl MutationRoot {
         // }
     }
 
+    fn update_user(context: &Context, user: UserInput, id:String) -> FieldResult<User>{
+        let conn = context.db_pool.get().unwrap();
+        
+        let res = conn.execute(
+            "UPDATE users SET wb = ?2, half_size = ?3, quality = ?4, lut_id = ?5 where id = ?1",
+            (&id,&user.wb,&user.half_size,&user.quality,&user.lut_id),
+        );
+        match res {
+            Ok(_) =>{
+                // let _id = conn.last_insert_rowid();
+                Ok(
+                    User{
+                        id: id.parse().unwrap(),
+                        name: user.name,
+                        email: user.email,
+                        wb: user.wb,
+                        half_size: user.half_size,
+                        quality: user.quality,
+                        lut_id: user.lut_id,
+                    }
+                )
+            }
+            Err(msg) =>{
+                Err(FieldError::new(
+                                "Failed to create new user",
+                                graphql_value!({ "internal_error": msg.to_string() }),
+                            ))
+            }
+        }
+    }
 }
 
 pub type Schema = RootNode<'static, QueryRoot, MutationRoot, EmptySubscription<Context>>;

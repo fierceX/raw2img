@@ -1,10 +1,13 @@
 -- 用户表
 CREATE TABLE `users` (
-    `id` INTEGER PRIMARY KEY AUTOINCREMENT,
-    `username` TEXT NOT NULL,
-    `email` TEXT NOT NULL,
-    `password` TEXT NOT NULL,
-    `lut_id` BIGINT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL,
+    password TEXT NOT NULL,
+    wb bool NOT NULL,
+    half_size bool NOT NULL,
+    quality BIGINT NOT NULL,
+    lut_id BIGINT,
     UNIQUE(email)
 );
 
@@ -47,6 +50,7 @@ CREATE TABLE images (
     scan_time DATETIME NOT NULL,
     file_size BIGINT NOT NULL,
     mime_type TEXT NOT NULL,
+    exif TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (path_id) REFERENCES path(id),
     UNIQUE(path_id,file_name)
@@ -64,7 +68,7 @@ CREATE TABLE luts(
 DROP VIEW IF EXISTS `images_view`;
 CREATE VIEW images_view AS
 SELECT 
-    images.id,images.user_id,images.file_name,images.cache_file_name,images.scan_time,images.file_size,images.mime_type,
+    images.id,images.user_id,images.file_name,images.cache_file_name,images.scan_time,images.file_size,images.mime_type,images.exif,
     "/api/img/" || storage_original.storage_url || paths_original.path || "/" || images.file_name AS original_url,
     case storage_cached.storage_type
     when "local" then "/api/img/" || storage_cached.storage_url || paths_cached.path || "/" || images.cache_file_name

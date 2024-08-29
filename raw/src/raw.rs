@@ -13,6 +13,7 @@ use libraw_rs_vendor::{
     libraw_open_file, libraw_processed_image_t, libraw_unpack, LibRaw_errors_LIBRAW_SUCCESS,
 };
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use exif::experimental::Writer;
 use exif::{Field, In, Tag, Value};
@@ -33,7 +34,7 @@ pub struct RawData {
     focal_len: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Myexif {
     iso: f32,
     aperture: f32,
@@ -308,7 +309,7 @@ pub fn raw_process(
     exp_shift: f32,
     threshold: i32,
     quality: i32,
-) -> Result<String, String> {
+) -> Result<Myexif, String> {
     if let Ok(_) = fs::metadata(&input) {
         let rawdata = read_raw(&input, wb, half_size, exp_shift, threshold);
         let _exif = Myexif {
@@ -327,7 +328,8 @@ pub fn raw_process(
                 rawdata.height.try_into().unwrap(),
                 quality,
                 &_exif,
-            )
+            );
+            Ok(_exif)
         } else {
             save(
                 output,
@@ -336,7 +338,8 @@ pub fn raw_process(
                 rawdata.height.try_into().unwrap(),
                 quality,
                 &_exif,
-            )
+            );
+            Ok(_exif)
         }
     } else {
         Err("aaa".to_string())

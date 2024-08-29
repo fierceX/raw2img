@@ -19,11 +19,16 @@ struct Parameters {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct Myexif {
-    id:i32,
-    iso: i32,
+    iso: f32,
     aperture: f32,
     shutter: f32,
     focal_len: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+struct Image {
+    id:i32,
+    exif:Myexif,
     filename: String,
     url: String,
 }
@@ -70,7 +75,7 @@ async fn getluts() -> Vec<(String, String)> {
     response_data.luts.iter().map(|x| (format!("{}/{}",x.path.clone(),x.lut_name.clone()),x.lut_name.clone())).collect()
 }
 
-async fn getrawfiles(user_id:i32) -> Vec<(usize, Myexif)> {
+async fn getrawfiles(user_id:i32) -> Vec<(usize, Image)> {
     let base_url = web_sys::window().unwrap().location().origin().unwrap();
     let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
@@ -83,15 +88,16 @@ async fn getrawfiles(user_id:i32) -> Vec<(usize, Myexif)> {
         post_graphql::<ImagesQuery, _>(&client, &url, variables).await.unwrap();
     log::info!("{:?}",response_body);
     let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
-    response_data.user.images.iter().enumerate().map(|(i,x)| (i,Myexif{
+    response_data.user.images.iter().enumerate().map(|(i,x)| {
+        let _exif:Myexif = serde_json::from_str(&x.exif).unwrap();
+        log::info!("{:?}",x.exif);
+        
+        (i,Image{
         id:x.id as i32,
-        iso:0,
-        aperture: 0.0,
-        shutter: 0.0,
-        focal_len: 0,
+        exif:_exif,
         filename: x.file_name.clone(),
         url: x.cached_url.clone(),
-    })).collect()
+    })}).collect()
     // println!("{:?}",response_data.user.images[1].cache_file_name);
 
     // log::info!("{:?}",response_data.user.images);
@@ -275,7 +281,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                     spawn_local_scoped(cx, async move {
                         loading.set(true);
                         let up_url = format!("{}/api/uplut",web_sys::window().unwrap().location().origin().unwrap());
-                        // let up_url = "http://127.0.0.1:8081/api/uplut";
+                        let up_url = "http://127.0.0.1:8081/api/uplut";
                         let filelist = upfile_ref
                         .get::<DomNode>()
                         .unchecked_into::<HtmlInputElement>().files().unwrap();
@@ -321,9 +327,9 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                                 img(style="display: block;margin-left: auto;margin-right: auto;",src=image.url,on:click=move |_| handle_image_click(index))
                                 footer(){
                                     small(){
-                                        i(class="bx bx-aperture",style="margin-right: 20px;"){(image.aperture)}
-                                        i(class="bx bx-time-five",style="margin-right: 20px;"){((1.0/image.shutter).round())}
-                                        i(class="bx bx-album"){(image.focal_len) " mm"}
+                                        i(class="bx bx-aperture",style="margin-right: 20px;"){(image.exif.aperture)}
+                                        i(class="bx bx-time-five",style="margin-right: 20px;"){((1.0/image.exif.shutter).round())}
+                                        i(class="bx bx-album"){(image.exif.focal_len) " mm"}
                                         }
                                 }
                             }

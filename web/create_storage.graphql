@@ -1,0 +1,5 @@
+mutation CreateStorage($storage: StorageInput!) {
+  createStorage(storage: $storage) {
+    id
+  }
+}

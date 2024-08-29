@@ -199,7 +199,7 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
             let out_file_name = format!("{}.jpg",base16ct::lower::encode_string(&buf));
             let out_file_path = format!("{}/{}",cache_path,out_file_name);
             println!("{} {}",out_file_name,out_file_path);
-            let _ = raw_process(
+            if let Ok(_exif) = raw_process(
                 _path,
                 out_file_path,
                 lut_path.clone(),
@@ -208,11 +208,14 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
                 -3.0,
                 -3,
                 90,
-            );
-            conn.execute(
-                "UPDATE images SET cache_id = ?2,cache_file_name = ?3 WHERE id = ?1",
-                (&_id, &cache_id,&out_file_name),
-            ).unwrap();
+            ){
+                let _exif_json = serde_json::to_string(&_exif).unwrap();
+                conn.execute(
+                    "UPDATE images SET cache_id = ?2,cache_file_name = ?3, exif = ?4 WHERE id = ?1",
+                    (&_id, &cache_id,&out_file_name,&_exif_json),
+                ).unwrap();
+            }
+            
         }
     }
 }
