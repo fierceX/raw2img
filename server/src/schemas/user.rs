@@ -7,6 +7,10 @@ pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
+    pub lut_id: i32,
+    pub wb: bool,
+    pub half_size: bool,
+    pub quality: i32,
 }
 
 #[derive(GraphQLInputObject)]
@@ -15,6 +19,10 @@ pub struct UserInput {
     pub name: String,
     pub email: String,
     pub password: String,
+    pub lut_id: i32,
+    pub wb: bool,
+    pub half_size: bool,
+    pub quality: i32,
 }
 
 #[graphql_object(Context = Context)]
@@ -27,6 +35,18 @@ impl User {
     }
     fn email(&self) -> &str {
         &self.email
+    }
+    fn lut_id(&self) -> &i32{
+        &self.lut_id
+    }
+    fn wb(&self) -> &bool{
+        &self.wb
+    }
+    fn half_size(&self) -> &bool{
+        &self.half_size
+    }
+    fn quality(&self) -> &i32{
+        &self.quality
     }
 
     fn storages(&self, context: &Context) -> Vec<Storage> {
@@ -62,8 +82,9 @@ impl User {
                 scan_time: row.get(4).unwrap(),
                 file_size: row.get(5).unwrap(),
                 mime_type: row.get(6).unwrap(),
-                original_url: row.get(7).unwrap(),
-                cached_url: row.get(8).unwrap_or("".to_string()),
+                exif: row.get(7).unwrap_or("".to_string()),
+                original_url: row.get(8).unwrap(),
+                cached_url: row.get(9).unwrap_or("".to_string()),
             })
         }).unwrap().into_iter().filter_map(Result::ok).collect()
 

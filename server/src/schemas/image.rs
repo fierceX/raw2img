@@ -13,6 +13,7 @@ pub struct Image {
     pub scan_time: String,
     pub file_size: i32,
     pub mime_type: String,
+    pub exif:String,
 }
 
 #[juniper::graphql_object(Context = Context)]
@@ -45,15 +46,22 @@ impl Image {
     fn mime_type(&self) -> &str {
         &self.mime_type
     }
+    fn exif(&self) -> &str {
+        &self.exif
+    }
 
     fn user(&self, context: &Context) -> Option<User> {
         let conn = context.db_pool.get().unwrap();
 
         let res = conn.query_row("select * from users where id = :id;", &[(":id",&self.user_id)], |row|{
             Ok(User{
-                id:row.get(0).unwrap(),
-                name:row.get(1).unwrap(),
-                email:row.get(2).unwrap(),
+                id: row.get(0).unwrap(),
+                name: row.get(1).unwrap(),
+                email: row.get(2).unwrap(),
+                wb: row.get(4).unwrap(),
+                half_size: row.get(5).unwrap(),
+                quality: row.get(6).unwrap(),
+                lut_id: row.get(7).unwrap_or(-1),
             })
         });
         if let Err(_err) = res{

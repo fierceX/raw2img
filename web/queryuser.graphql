@@ -1,0 +1,23 @@
+query UserQuery($id: String!) {
+  user(id: $id) {
+    id
+    name
+    email
+    wb
+    halfSize
+    quality
+    lutId
+    storages {
+      accessKey
+      addedTime
+      bucketName
+      id
+      storageUsage
+      secretKey
+      storageName
+      storagePath
+      storageType
+      storageUrl
+    }
+  }
+}

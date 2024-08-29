@@ -124,7 +124,7 @@ async fn create_user(
     let buf = hasher.finalize();
     let input_password = base16ct::lower::encode_string(&buf);
     let res = db_conn.get().unwrap().execute(
-        "INSERT INTO users (username, email,password) VALUES (?1, ?2, ?3)",
+        "INSERT INTO users (username, email, password, wb, half_size, quality) VALUES (?1, ?2, ?3, false, true, 90)",
         (&form.username, &form.email, &input_password),
     );
     match res {
