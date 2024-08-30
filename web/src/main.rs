@@ -61,11 +61,13 @@ async fn check_auth() -> (bool,i32){
 fn Header<G: Html>(cx: Scope) -> View<G>{
     view!{cx,
     header(class="container"){
+        div(class="grid"){
       hgroup{
         a(href = "/"){h1{"Raw2Img"}}
         p{"Raw格式文件转换Img工具"}
       }
-      a(href="/setting"){h1{"设置"}}
+      div(style="display: flex; justify-content: center; align-items: center;"){a(href="/setting"){h5{"设置"}}}
+    }
     }
     }
 }

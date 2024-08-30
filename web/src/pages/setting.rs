@@ -55,9 +55,9 @@ use create_storage::StorageInput;
 
 use crate::{pages::home::{luts_query, LutsQuery}, User};
 
-async fn getuser(user_id:i32) -> (UserInput,Vec<(usize,Storage)>) {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("{}/api/graphql", base_url);
+async fn getuser(user_id:i32,url: &str) -> (UserInput,Vec<(usize,Storage)>) {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
     
     let client = reqwest::Client::new();
@@ -69,7 +69,7 @@ async fn getuser(user_id:i32) -> (UserInput,Vec<(usize,Storage)>) {
 
     
     let response_body = 
-        post_graphql::<UserQuery, _>(&client, &url, variables).await.unwrap();
+        post_graphql::<UserQuery, _>(&client, url, variables).await.unwrap();
     log::info!("{:?}",response_body);
     let response_data: user_query::ResponseData = response_body.data.expect("missing response data");
     let stoarges = response_data.user.storages.iter().enumerate().map(|(i,x)| 
@@ -97,11 +97,11 @@ async fn getuser(user_id:i32) -> (UserInput,Vec<(usize,Storage)>) {
     (user,stoarges)
 }
 
-async fn updateuser(user_id:i32,user:UserInput) {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+async fn updateuser(user_id:i32,user:UserInput, url:&str) {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let base_url = "http://127.0.0.1:8081";
     let client = reqwest::Client::new();
-    let url = format!("{}/api/graphql", base_url);
+    // let url = format!("{}/api/graphql", base_url);
 
     let variables = update_user::Variables {
         id: user_id.to_string(),
@@ -109,43 +109,43 @@ async fn updateuser(user_id:i32,user:UserInput) {
     };
 
     let response_body = 
-        post_graphql::<UpdateUser, _>(&client, &url, variables).await.unwrap();
+        post_graphql::<UpdateUser, _>(&client, url, variables).await.unwrap();
     log::info!("{:?}",response_body);
 }
 
 
-async fn createstorage(storage:StorageInput) {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+async fn createstorage(storage:StorageInput,url:&str) {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let base_url = "http://127.0.0.1:8081";
     let client = reqwest::Client::new();
-    let url = format!("{}/api/graphql", base_url);
+    // let url = format!("{}/api/graphql", base_url);
 
     let variables = create_storage::Variables {
         storage,
     };
 
     let response_body = 
-        post_graphql::<CreateStorage, _>(&client, &url, variables).await.unwrap();
+        post_graphql::<CreateStorage, _>(&client, url, variables).await.unwrap();
     log::info!("{:?}",response_body);
 }
 
 
-async fn getluts() -> Vec<(usize, String)> {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("{}/api/graphql", base_url);
+async fn getluts(url: &str) -> Vec<(usize, String)> {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
     let client = reqwest::Client::new();
     let variables = luts_query::Variables{};
     let response_body = 
-        post_graphql::<LutsQuery, _>(&client, &url, variables).await.unwrap();
+        post_graphql::<LutsQuery, _>(&client, url, variables).await.unwrap();
     log::info!("{:?}",response_body);
     let response_data: luts_query::ResponseData = response_body.data.expect("missing response data");
     response_data.luts.iter().map(|x| (x.id as usize,x.lut_name.clone())).collect()
 }
 
 
-async fn scan_files(user_id:i32) {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+async fn scan_files(user_id:i32,base_url:&str) {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = format!("http://127.0.0.1:8081/api/scan");
     // log::info!("{:?}", params);
     let url = format!("{}/api/scan", base_url);
@@ -161,8 +161,13 @@ async fn scan_files(user_id:i32) {
 #[component]
 pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
     let user_id = use_context::<RcSignal<i32>>(cx);
+
+    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let base_url = "http://127.0.0.1:8081".to_string();
+    let graphql_url = format!("{}/api/graphql",base_url);
+
     // let user_id = 1;
-    let (_user,_storages) = getuser(*user_id.get()).await;
+    let (_user,_storages) = getuser(*user_id.get(),&graphql_url).await;
     // let img_url = create_signal(cx, String::new());
     let user = create_signal(cx, _user);
     let storages = create_signal(cx,_storages);
@@ -182,8 +187,14 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
 
     
 
-    let luts = create_signal(cx, getluts().await);
+    let luts = create_signal(cx, getluts(&graphql_url).await);
 
+    let upfile_ref = create_node_ref(cx);
+
+    let loading = create_signal(cx, false);
+
+    let base_url_c = create_signal(cx,base_url);
+    let graphql_url_c = create_signal(cx,graphql_url);
 
     // let loading = create_signal(cx, false);
     if user.get().wb{
@@ -233,7 +244,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 half_size:hf,
                 quality:q.parse::<i64>().unwrap(),
             };
-            updateuser(*user_id.get(), _user).await;
+            updateuser(*user_id.get(), _user,graphql_url_c.get().as_str()).await;
         })
     };
 
@@ -253,8 +264,8 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 secret_key:"".to_string(),
                 bucket_name:"".to_string(),
                 storage_usage:storage_use,
-            }).await;
-            let (_,_storages) = getuser(*user_id.get()).await;
+            },graphql_url_c.get().as_str()).await;
+            let (_,_storages) = getuser(*user_id.get(),graphql_url_c.get().as_str()).await;
 
             storages.set(_storages);
             edit_storage.set(false);
@@ -262,21 +273,48 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         })
     };
 
-    // let edit_s = move |_|{
-    //     spawn_local_scoped(cx, async move {
-
-
-    //     })
-    // };
-    let l = luts.get().iter().find(|&&(key, _)| key == user.get().lut_id as usize).unwrap_or(&(0 as usize,"Not Lut".to_string())).1.clone();
-    log::info!("{}",l);
-
-    // lut_ref.get::<DomNode>().unchecked_into::<HtmlOptionElement>().set_value(&l);
     view!{cx,
         div(){
-            input(type="text",disabled=true,value = user.get().name){}
+
+            h4{"Hi " (user.get().name)}
+            
             article(){
-                header(){"默认参数设定"}
+                header(){"上传Lut"}
+                fieldset(role="group"){
+                    input(ref=upfile_ref,type="file",id="file",name="file")
+        
+                    button(aria-busy=*loading.get(),on:click = move|_|{
+                        spawn_local_scoped(cx, async move {
+                            loading.set(true);
+                            let up_url = format!("{}/api/uplut",base_url_c.get());
+                            // let up_url = "http://127.0.0.1:8081/api/uplut";
+                            let filelist = upfile_ref
+                            .get::<DomNode>()
+                            .unchecked_into::<HtmlInputElement>().files().unwrap();
+                            let file = filelist.item(0).unwrap();
+                            let file_name = file.name();
+                            log::info!("{:?},{:?},{:?}",file.name(),file.size(),file.type_());
+                            let file_array = sycamore::futures::JsFuture::from(file.array_buffer()).await.unwrap();
+                            let file_bytes:Vec<u8> = web_sys::js_sys::Uint8Array::new(&file_array).to_vec().into();
+                            let file_part = reqwest::multipart::Part::bytes(file_bytes).file_name(file_name.clone());
+                            let form = reqwest::multipart::Form::new().part("file",file_part);
+                            let client = reqwest::Client::new();
+                            client.post(up_url)
+                                .multipart(form)
+                                .send()
+                                .await
+                                .expect("Failed to send request");
+                            // images.set(getrawfiles(*user_id.get(),graphql_url_c.get().as_str()).await);
+                            // log::info!("{:?}",images);
+                            // loading.set(false);
+        
+                    })}){"submit"}
+                }
+        
+            }
+
+            article(){
+                header(){"Raw 转换默认参数设定"}
                 div(class="grid"){
                 fieldset(){
                     legend(){"白平衡设置"}
@@ -306,8 +344,9 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 label(){(hf_label.get())}
             }
         }
-
+  
         div(class="grid"){
+            
                 fieldset(){
                 legend(){"默认 Lut"}
                 select(ref=lut_ref,aria-label="选择Lut"){
@@ -363,7 +402,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 footer(style="display: flex;justify-content: center;align-items: center;"){
                     button(on:click = move |_| edit_storage.set(true)){"新增"}
                     button(on:click = move |_| {
-                        spawn_local_scoped(cx, async move {scan_files(*user_id.get()).await;})}){"扫描"}
+                        spawn_local_scoped(cx, async move {scan_files(*user_id.get(),base_url_c.get().as_str()).await;})}){"扫描"}
                     }
             }
             

@@ -5,8 +5,6 @@ use web_sys::{HtmlInputElement, HtmlOptionElement};
 use graphql_client::{reqwest::post_graphql, GraphQLQuery};
 
 
-
-
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 struct Parameters {
     id:i32,
@@ -62,22 +60,22 @@ pub struct StorageQuery;
 pub struct LutsQuery;
 
 
-async fn getluts() -> Vec<(String, String)> {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("{}/api/graphql", base_url);
+async fn getluts(url:&str) -> Vec<(String, String)> {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
     let client = reqwest::Client::new();
     let variables = luts_query::Variables{};
     let response_body = 
-        post_graphql::<LutsQuery, _>(&client, &url, variables).await.unwrap();
+        post_graphql::<LutsQuery, _>(&client, url, variables).await.unwrap();
     log::info!("{:?}",response_body);
     let response_data: luts_query::ResponseData = response_body.data.expect("missing response data");
     response_data.luts.iter().map(|x| (format!("{}/{}",x.path.clone(),x.lut_name.clone()),x.lut_name.clone())).collect()
 }
 
-async fn getrawfiles(user_id:i32) -> Vec<(usize, Image)> {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
-    let url = format!("{}/api/graphql", base_url);
+async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
     
     let client = reqwest::Client::new();
@@ -85,7 +83,7 @@ async fn getrawfiles(user_id:i32) -> Vec<(usize, Image)> {
         id: user_id.to_string(),
     };
     let response_body = 
-        post_graphql::<ImagesQuery, _>(&client, &url, variables).await.unwrap();
+        post_graphql::<ImagesQuery, _>(&client, url, variables).await.unwrap();
     log::info!("{:?}",response_body);
     let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
     response_data.user.images.iter().enumerate().map(|(i,x)| {
@@ -103,8 +101,8 @@ async fn getrawfiles(user_id:i32) -> Vec<(usize, Image)> {
     // log::info!("{:?}",response_data.user.images);
 }
 
-async fn get_jpg(params: Parameters) -> String {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+async fn get_jpg(params: Parameters,base_url:&str) -> String {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = format!("http://127.0.0.1:8081/api/raw2jpg");
     log::info!("{:?}", params);
     let url = format!("{}/api/raw2jpg", base_url);
@@ -120,8 +118,8 @@ async fn get_jpg(params: Parameters) -> String {
     // format!("{}/api/{}", base_url, body)
 }
 
-async fn save_jpg(url_file: String, image_id: i32) {
-    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+async fn save_jpg(url_file: String, image_id: i32, base_url:&str) {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = format!("http://127.0.0.1:8081/api/save");
     // log::info!("{:?}", params);
     let url = format!("{}/api/save", base_url);
@@ -136,6 +134,11 @@ async fn save_jpg(url_file: String, image_id: i32) {
 
 #[component]
 pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
+    let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let base_url = "http://127.0.0.1:8081".to_string();
+    let graphql_url = format!("{}/api/graphql",base_url);
+
+    
     let img_url = create_signal(cx, String::new());
     let file_name = create_signal(cx, String::new());
     let exp_string = create_signal(cx, String::new());
@@ -155,9 +158,9 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
 
     let user_id = use_context::<RcSignal<i32>>(cx);
 
-    images.set(getrawfiles(*user_id.get()).await);
+    images.set(getrawfiles(*user_id.get(),&graphql_url).await);
 
-    let upfile_ref = create_node_ref(cx);
+    
 
     let auto_wb_ref = create_node_ref(cx);
     let wb_label = create_signal(cx, String::new());
@@ -173,6 +176,12 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
     let is_zoomed = create_signal(cx, false);
 
     let is_edit = create_signal(cx, false);
+
+    let luts = create_signal(cx, getluts(&graphql_url).await);
+
+    let base_url_c = create_signal(cx,base_url);
+    let graphql_url_c = create_signal(cx,graphql_url);
+
 
     // 处理图片点击事件
     let handle_image_click = move |index: usize| {
@@ -244,7 +253,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                     wb,
                     exp_shift: exp_shift_,
                     threshold: threshold_,
-                })
+                },base_url_c.get().as_str())
                 .await,
             );
             file_name.set(filename_);
@@ -253,7 +262,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         })
     };
 
-    let save = move |_| {
+    let save =  move |_| {
         spawn_local_scoped(cx, async move {
             let url_file = img_url
                 .get()
@@ -264,48 +273,16 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 .to_string();
             // let file_name = images.get()[*current_index.get()].1.filename.clone();
             let image_id = images.get()[*current_index.get()].1.id.clone();
-            save_jpg(url_file, image_id).await;
-            images.set(getrawfiles(*user_id.get()).await);
+            save_jpg(url_file, image_id,base_url_c.get().as_str()).await;
+            images.set(getrawfiles(*user_id.get(),graphql_url_c.get().as_str()).await);
             is_edit.set(false);
         })
     };
 
-    let luts = create_signal(cx, getluts().await);
+    
     // let luts: &Signal<Vec<(String,String)>> = create_signal(cx, Vec::new());
     view! {cx,
-        div(class="grid",hidden=*is_zoomed.get()){
-            fieldset(role="group"){
-                input(ref=upfile_ref,type="file",id="file",name="file")
-
-                button(aria-busy=*loading.get(),on:click = move|_|{
-                    spawn_local_scoped(cx, async move {
-                        loading.set(true);
-                        let up_url = format!("{}/api/uplut",web_sys::window().unwrap().location().origin().unwrap());
-                        let up_url = "http://127.0.0.1:8081/api/uplut";
-                        let filelist = upfile_ref
-                        .get::<DomNode>()
-                        .unchecked_into::<HtmlInputElement>().files().unwrap();
-                        let file = filelist.item(0).unwrap();
-                        let file_name = file.name();
-                        log::info!("{:?},{:?},{:?}",file.name(),file.size(),file.type_());
-                        let file_array = sycamore::futures::JsFuture::from(file.array_buffer()).await.unwrap();
-                        let file_bytes:Vec<u8> = web_sys::js_sys::Uint8Array::new(&file_array).to_vec().into();
-                        let file_part = reqwest::multipart::Part::bytes(file_bytes).file_name(file_name.clone());
-                        let form = reqwest::multipart::Form::new().part("file",file_part);
-                        let client = reqwest::Client::new();
-                        client.post(up_url)
-                            .multipart(form)
-                            .send()
-                            .await
-                            .expect("Failed to send request");
-                        images.set(getrawfiles(*user_id.get()).await);
-                        log::info!("{:?}",images);
-                        loading.set(false);
-
-                })}){"submit"}
-            }
-
-        }
+        
 
 
         div(class="custom-grid",hidden=*is_zoomed.get() || *is_edit.get()){
