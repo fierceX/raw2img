@@ -17,3 +17,13 @@ reqwest = {version = "0.11.3",features = ["json","multipart"]}
 graphql_client = {version = "0.14.0",features = ["reqwest"]}
 serde = "1.0.147"
 serde_json = "1.0"
+
+[profile.release]
+# Do not perform backtrace for panic on release builds.
+panic = 'abort'
+# Perform optimizations on all codegen units.
+codegen-units = 1
+# Optimize for size.
+opt-level = 's' # or 'z' to optimize "aggressively" for size
+# Enable link time optimization.
+lto = true

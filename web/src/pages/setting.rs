@@ -70,7 +70,7 @@ async fn getuser(user_id:i32,url: &str) -> (UserInput,Vec<(usize,Storage)>) {
     
     let response_body = 
         post_graphql::<UserQuery, _>(&client, url, variables).await.unwrap();
-    log::info!("{:?}",response_body);
+    // log::info!("{:?}",response_body);
     let response_data: user_query::ResponseData = response_body.data.expect("missing response data");
     let stoarges = response_data.user.storages.iter().enumerate().map(|(i,x)| 
         (i,Storage{
@@ -110,7 +110,7 @@ async fn updateuser(user_id:i32,user:UserInput, url:&str) {
 
     let response_body = 
         post_graphql::<UpdateUser, _>(&client, url, variables).await.unwrap();
-    log::info!("{:?}",response_body);
+    // log::info!("{:?}",response_body);
 }
 
 
@@ -126,7 +126,7 @@ async fn createstorage(storage:StorageInput,url:&str) {
 
     let response_body = 
         post_graphql::<CreateStorage, _>(&client, url, variables).await.unwrap();
-    log::info!("{:?}",response_body);
+    // log::info!("{:?}",response_body);
 }
 
 
@@ -138,7 +138,7 @@ async fn getluts(url: &str) -> Vec<(usize, String)> {
     let variables = luts_query::Variables{};
     let response_body = 
         post_graphql::<LutsQuery, _>(&client, url, variables).await.unwrap();
-    log::info!("{:?}",response_body);
+    // log::info!("{:?}",response_body);
     let response_data: luts_query::ResponseData = response_body.data.expect("missing response data");
     response_data.luts.iter().map(|x| (x.id as usize,x.lut_name.clone())).collect()
 }
@@ -293,7 +293,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                             .unchecked_into::<HtmlInputElement>().files().unwrap();
                             let file = filelist.item(0).unwrap();
                             let file_name = file.name();
-                            log::info!("{:?},{:?},{:?}",file.name(),file.size(),file.type_());
+                            // log::info!("{:?},{:?},{:?}",file.name(),file.size(),file.type_());
                             let file_array = sycamore::futures::JsFuture::from(file.array_buffer()).await.unwrap();
                             let file_bytes:Vec<u8> = web_sys::js_sys::Uint8Array::new(&file_array).to_vec().into();
                             let file_part = reqwest::multipart::Part::bytes(file_bytes).file_name(file_name.clone());

@@ -287,10 +287,24 @@ async fn update_lut(
             ) {
                 Ok(_) => {
                     let path = format!("{}/{}", luts_path, f.file_name.as_ref().unwrap());
-                    f.file.persist(path).unwrap();
+                    log::info!("上传存储路径：{}",path);
+                    // f.file.persist(path).unwrap();
+                    let o_path = f.file.path().to_string_lossy().to_string();
+                    match f.file.persist(&path) {
+                        Ok(_) => {},
+                        Err(e) => {
+                                // 如果发生跨设备链接错误，使用复制操作
+                            std::fs::copy(&o_path, &path).unwrap();
+                            std::fs::remove_file(o_path).unwrap();
+                            log::error!("error : {}",e.to_string());
+                            // Ok(HttpResponse::Ok().body(format!("File uploaded to: {:?}", path)))
+                            
+                        }
+                    }
                 }
                 Err(_e) => {
                     log::error!("{:?}", _e);
+                    // Err(actix_web::error::ErrorUnauthorized("aaa"))
                 }
             };
         }
@@ -331,7 +345,7 @@ pub fn register(config: &mut web::ServiceConfig) {
         .app_data(web::Data::new(create_schema()))
         .service(
             web::scope("/api")
-                .wrap(middleware::from_fn(authentication))
+                // .wrap(middleware::from_fn(authentication))
                 .service(check_auth)
                 .service(graphql)
                 .service(scans)
