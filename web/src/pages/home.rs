@@ -68,7 +68,7 @@ async fn getluts(url:&str) -> Vec<(String, String)> {
     let variables = luts_query::Variables{};
     let response_body = 
         post_graphql::<LutsQuery, _>(&client, url, variables).await.unwrap();
-    log::info!("{:?}",response_body);
+    // log::info!("{:?}",response_body);
     let response_data: luts_query::ResponseData = response_body.data.expect("missing response data");
     response_data.luts.iter().map(|x| (format!("{}/{}",x.path.clone(),x.lut_name.clone()),x.lut_name.clone())).collect()
 }
@@ -84,18 +84,27 @@ async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
     };
     let response_body = 
         post_graphql::<ImagesQuery, _>(&client, url, variables).await.unwrap();
-    log::info!("{:?}",response_body);
+    // log::info!("{:?}",response_body);
     let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
     response_data.user.images.iter().enumerate().map(|(i,x)| {
-        let _exif:Myexif = serde_json::from_str(&x.exif).unwrap();
-        log::info!("{:?}",x.exif);
+        
+        if let Ok(_exif) = serde_json::from_str(&x.exif) {
+        // log::info!("{:?}",x.exif);
         
         (i,Image{
         id:x.id as i32,
         exif:_exif,
         filename: x.file_name.clone(),
-        url: x.cached_url.clone(),
-    })}).collect()
+        url: x.cached_url.clone(),})}
+    else{
+        (i,Image{
+            id:x.id as i32,
+            exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0},
+            filename: x.file_name.clone(),
+            url: x.cached_url.clone(),})
+    }
+
+}).collect()
     // println!("{:?}",response_data.user.images[1].cache_file_name);
 
     // log::info!("{:?}",response_data.user.images);
@@ -104,7 +113,7 @@ async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
 async fn get_jpg(params: Parameters,base_url:&str) -> String {
     // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = format!("http://127.0.0.1:8081/api/raw2jpg");
-    log::info!("{:?}", params);
+    // log::info!("{:?}", params);
     let url = format!("{}/api/raw2jpg", base_url);
     reqwest::Client::new()
         .post(&url)
@@ -191,13 +200,13 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
 
     // 处理左切换按钮点击事件
     let handle_prev_click = move |_| {
-        log::info!("{:?}", *current_index.get());
+        // log::info!("{:?}", *current_index.get());
         current_index.set((*current_index.get() + images.get().len() - 1) % images.get().len());
     };
 
     // 处理右切换按钮点击事件
     let handle_next_click = move |_| {
-        log::info!("{:?}", *current_index.get());
+        // log::info!("{:?}", *current_index.get());
         current_index.set((*current_index.get() + 1) % images.get().len());
     };
 
@@ -301,7 +310,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                                             img_url.set(_image.url);
                                         }){(image.filename)}
                                 }
-                                img(style="display: block;margin-left: auto;margin-right: auto;",src=image.url,on:click=move |_| handle_image_click(index))
+                                img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=image.url,on:click=move |_| handle_image_click(index))
                                 footer(){
                                     small(){
                                         i(class="bx bx-aperture",style="margin-right: 20px;"){(image.exif.aperture)}

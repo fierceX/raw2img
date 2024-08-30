@@ -67,12 +67,14 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
             // 格式化时间
             let formatted_time = now.format("%Y-%m-%d %H:%M:%S").to_string();
             for (file_name,file_type,file_size) in file_names{
+                if file_type == "RW2"{
                 conn.execute(
                     "INSERT OR IGNORE INTO images (user_id, path_id, file_name,scan_time,file_size,mime_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                     (&user_id, &_id,&file_name,&formatted_time,&file_size,&file_type),
                 ).unwrap();
                 
                 println!("{}",file_name);
+            }
             }
         }
     }
