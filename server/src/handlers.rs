@@ -345,7 +345,7 @@ pub fn register(config: &mut web::ServiceConfig) {
         .app_data(web::Data::new(create_schema()))
         .service(
             web::scope("/api")
-                // .wrap(middleware::from_fn(authentication))
+                .wrap(middleware::from_fn(authentication))
                 .service(check_auth)
                 .service(graphql)
                 .service(scans)
