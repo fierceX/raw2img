@@ -1,5 +1,6 @@
 use juniper::{graphql_object, GraphQLInputObject};
 use crate::schemas::{root::Context,user::User};
+use rusqlite::Error;
 
 
 #[derive(Default, Debug)]
@@ -76,6 +77,22 @@ impl Storage {
         }
 
     }
+}
+
+pub fn row2storage(row:&rusqlite::Row<'_>) -> Result<Storage,Error>{
+    Ok(Storage {
+        id: row.get(0).unwrap(),
+        user_id: row.get(1).unwrap(),
+        storage_name: row.get(2).unwrap(),
+        storage_path: row.get(3).unwrap_or("".to_string()),
+        storage_type: row.get(4).unwrap(),
+        storage_url: row.get(5).unwrap(),
+        access_key: row.get(6).unwrap_or("".to_string()),
+        secret_key: row.get(7).unwrap_or("".to_string()),
+        bucket_name: row.get(8).unwrap_or("".to_string()),
+        added_time: row.get(9).unwrap(),
+        storage_usage: row.get(10).unwrap(),
+    })
 }
 
 #[derive(GraphQLInputObject)]

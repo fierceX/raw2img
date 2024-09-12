@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sycamore::futures::spawn_local_scoped;
+use sycamore::{futures::spawn_local_scoped, web::html::img};
 use sycamore::prelude::*;
 use web_sys::{HtmlInputElement, HtmlOptionElement};
 use graphql_client::{reqwest::post_graphql, GraphQLQuery};
@@ -21,6 +21,7 @@ struct Myexif {
     aperture: f32,
     shutter: f32,
     focal_len: i32,
+    pub shooting_date:String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -86,25 +87,30 @@ async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
         post_graphql::<ImagesQuery, _>(&client, url, variables).await.unwrap();
     // log::info!("{:?}",response_body);
     let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
-    response_data.user.images.iter().enumerate().map(|(i,x)| {
+    let mut image_list: Vec<(usize,Image)> = response_data.user.images.iter().enumerate().map(|(i,x)| {
         
         if let Ok(_exif) = serde_json::from_str(&x.exif) {
         // log::info!("{:?}",x.exif);
         
-        (i,Image{
-        id:x.id as i32,
-        exif:_exif,
-        filename: x.file_name.clone(),
-        url: x.cached_url.clone(),})}
-    else{
-        (i,Image{
+            (i,Image{
             id:x.id as i32,
-            exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0},
+            exif:_exif,
             filename: x.file_name.clone(),
             url: x.cached_url.clone(),})
-    }
+        }
+        else{
+            (i,Image{
+                id:x.id as i32,
+                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01".to_string()},
+                filename: x.file_name.clone(),
+                url: x.cached_url.clone(),})
+        }
 
-}).collect()
+    }).collect();
+    // image_list.sort_by_key(|p|p.1.exif.shooting_date);
+    image_list.sort_by(|a,b|b.1.exif.shooting_date.cmp(&a.1.exif.shooting_date));
+    image_list
+
     // println!("{:?}",response_data.user.images[1].cache_file_name);
 
     // log::info!("{:?}",response_data.user.images);

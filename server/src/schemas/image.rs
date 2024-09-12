@@ -1,5 +1,7 @@
+
 use juniper::{graphql_object, GraphQLInputObject};
-use crate::schemas::{root::Context,user::User};
+use crate::schemas::{root::Context,user::User,user::row2user};
+use rusqlite::Error;
 
 
 #[derive(Default, Debug)]
@@ -11,6 +13,7 @@ pub struct Image {
     pub file_name: String,
     pub cache_file_name: String,
     pub scan_time: String,
+    pub shooting_time: String,
     pub file_size: i32,
     pub mime_type: String,
     pub exif:String,
@@ -40,6 +43,9 @@ impl Image {
     fn scan_time(&self) -> &str {
         &self.scan_time
     }
+    fn shooting_time(&self) -> &str {
+        &self.shooting_time
+    }
     fn file_size(&self) -> &i32 {
         &self.file_size
     }
@@ -54,15 +60,7 @@ impl Image {
         let conn = context.db_pool.get().unwrap();
 
         let res = conn.query_row("select * from users where id = :id;", &[(":id",&self.user_id)], |row|{
-            Ok(User{
-                id: row.get(0).unwrap(),
-                name: row.get(1).unwrap(),
-                email: row.get(2).unwrap(),
-                wb: row.get(4).unwrap(),
-                half_size: row.get(5).unwrap(),
-                quality: row.get(6).unwrap(),
-                lut_id: row.get(7).unwrap_or(-1),
-            })
+            row2user(row)
         });
         if let Err(_err) = res{
             None
@@ -71,4 +69,20 @@ impl Image {
             Some(res.unwrap())
         }
     }
+}
+
+pub fn row2img(row:&rusqlite::Row<'_>) -> Result<Image, Error>{
+        Ok(Image {
+            id: row.get(0).unwrap(),
+            user_id: row.get(1).unwrap(),
+            file_name: row.get(2).unwrap(),
+            cache_file_name: row.get(3).unwrap_or("".to_string()),
+            scan_time: row.get(4).unwrap(),
+            shooting_time: row.get(5).unwrap(),
+            file_size: row.get(6).unwrap(),
+            mime_type: row.get(7).unwrap(),
+            exif: row.get(8).unwrap_or("".to_string()),
+            original_url: row.get(9).unwrap(),
+            cached_url: row.get(10).unwrap_or("".to_string()),
+        })
 }
