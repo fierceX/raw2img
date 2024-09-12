@@ -1,4 +1,5 @@
 use std::ffi::{c_char, c_int, CString};
+use std::os::macos::raw;
 use std::{
     default,
     fs::{self, File},
@@ -15,12 +16,16 @@ use libraw_rs_vendor::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use chrono::{TimeZone, Local};
+
 use exif::experimental::Writer;
 use exif::{Field, In, Tag, Value};
 
 use jpeg_encoder;
 use webp::Encoder;
 mod lut3d;
+mod img_frame;
+use crate::img_frame::gen_frame_img;
 use crate::lut3d::{interp_8_tetrahedral, parse_cube};
 
 pub struct RawData {
@@ -32,14 +37,16 @@ pub struct RawData {
     aperture: f32,
     shutter: f32,
     focal_len: u16,
+    shooting_date: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Myexif {
-    iso: f32,
-    aperture: f32,
-    shutter: f32,
-    focal_len: u16,
+    pub iso: f32,
+    pub aperture: f32,
+    pub shutter: f32,
+    pub focal_len: u16,
+    pub shooting_date:String,
 }
 
 fn exposure_shift(data: &[u8]) -> f32 {
@@ -158,6 +165,7 @@ fn read_raw(input: &str, wb: bool, half_size: bool, exp_shift: f32, threshold: i
         let iso = (*(libraw_data)).other.iso_speed;
         let aperture = (*(libraw_data)).other.aperture;
         let shutter = (*(libraw_data)).other.shutter;
+        let timestamp = (*(libraw_data)).other.timestamp;
         let focal_len = (*(libraw_data)).lens.FocalLengthIn35mmFormat;
         if wb {
             (*(libraw_data)).params.use_auto_wb = 1;
@@ -197,6 +205,8 @@ fn read_raw(input: &str, wb: bool, half_size: bool, exp_shift: f32, threshold: i
         let _width = (*img).width as i32;
         let _height = (*img).height as i32;
         let _colors = (*img).colors as i32;
+        let datetime = Local.timestamp_opt(timestamp, 0).unwrap();
+
         // 使用指针和大小创建一个 Rust 切片
         let _rawdata = std::slice::from_raw_parts(raw_data, raw_size as usize);
 
@@ -209,6 +219,7 @@ fn read_raw(input: &str, wb: bool, half_size: bool, exp_shift: f32, threshold: i
             aperture,
             shutter,
             focal_len,
+            shooting_date:datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
         };
         libraw_close(libraw_data);
         rawdata
@@ -222,7 +233,16 @@ fn save(
     height: u32,
     quality: i32,
     _exif: &Myexif,
+    embed_exif:bool,
+    font_file:&str
 ) -> Result<String, String> {
+    let (data,width,height) = if font_file != ""{
+        let exif_str = format!("{}mm f/{} 1/{}s ISO{}",_exif.focal_len,_exif.aperture,(1.0/_exif.shutter).round(),_exif.iso);
+        gen_frame_img(data,width,height,&exif_str,false,true,None,font_file)
+    }
+    else{
+        (data,width,height)
+    };
     match output.split('.').last() {
         Some(suffix) if suffix == "webp" => {
             let encoder = Encoder::from_rgb(&data, width, height);
@@ -232,59 +252,75 @@ fn save(
         }
         Some(suffix) if suffix == "jpg" => {
             {
-                let mut buf_writer = BufWriter::new(std::io::Cursor::new(Vec::new()));
-                let mut encoder =
-                    jpeg_encoder::Encoder::new(&mut buf_writer, quality.try_into().unwrap());
-                encoder.set_progressive(true);
-                encoder
-                    .encode(
-                        &data,
-                        width.try_into().unwrap(),
-                        height.try_into().unwrap(),
-                        jpeg_encoder::ColorType::Rgb,
-                    )
-                    .unwrap();
+                if embed_exif{
+                    let mut buf_writer = BufWriter::new(std::io::Cursor::new(Vec::new()));
+                    let mut encoder =
+                        jpeg_encoder::Encoder::new(&mut buf_writer, quality.try_into().unwrap());
+                    encoder.set_progressive(true);
+                    encoder
+                        .encode(
+                            &data,
+                            width.try_into().unwrap(),
+                            height.try_into().unwrap(),
+                            jpeg_encoder::ColorType::Rgb,
+                        )
+                        .unwrap();
 
-                let image_desc1 = Field {
-                    tag: Tag::ExposureTime,
-                    ifd_num: In::PRIMARY,
-                    value: Value::Float(vec![_exif.shutter]),
-                };
+                    let image_desc1 = Field {
+                        tag: Tag::ExposureTime,
+                        ifd_num: In::PRIMARY,
+                        value: Value::Float(vec![_exif.shutter]),
+                    };
 
-                let image_desc2 = Field {
-                    tag: Tag::FNumber,
-                    ifd_num: In::PRIMARY,
-                    value: Value::Float(vec![_exif.aperture]),
-                };
+                    let image_desc2 = Field {
+                        tag: Tag::FNumber,
+                        ifd_num: In::PRIMARY,
+                        value: Value::Float(vec![_exif.aperture]),
+                    };
 
-                let image_desc3 = Field {
-                    tag: Tag::FocalLength,
-                    ifd_num: In::PRIMARY,
-                    value: Value::Short(vec![_exif.focal_len]),
-                };
+                    let image_desc3 = Field {
+                        tag: Tag::FocalLength,
+                        ifd_num: In::PRIMARY,
+                        value: Value::Short(vec![_exif.focal_len]),
+                    };
 
-                let image_desc4 = Field {
-                    tag: Tag::PhotographicSensitivity,
-                    ifd_num: In::PRIMARY,
-                    value: Value::Long(vec![_exif.iso as u32]),
-                };
+                    let image_desc4 = Field {
+                        tag: Tag::PhotographicSensitivity,
+                        ifd_num: In::PRIMARY,
+                        value: Value::Long(vec![_exif.iso as u32]),
+                    };
 
-                let mut writer = Writer::new();
-                let mut buf = std::io::Cursor::new(Vec::new());
-                writer.push_field(&image_desc1);
-                writer.push_field(&image_desc2);
-                writer.push_field(&image_desc3);
-                writer.push_field(&image_desc4);
-                writer.write(&mut buf, false).unwrap();
+                    let mut writer = Writer::new();
+                    let mut buf = std::io::Cursor::new(Vec::new());
+                    writer.push_field(&image_desc1);
+                    writer.push_field(&image_desc2);
+                    writer.push_field(&image_desc3);
+                    writer.push_field(&image_desc4);
+                    writer.write(&mut buf, false).unwrap();
 
-                let output2 = File::create(&output).unwrap();
+                    let output2 = File::create(&output).unwrap();
 
-                let cursor = buf_writer.into_inner().unwrap();
-                let buffer = cursor.into_inner();
+                    let cursor = buf_writer.into_inner().unwrap();
+                    let buffer = cursor.into_inner();
 
-                let mut jpeg = Jpeg::from_bytes(buffer.into()).unwrap();
-                jpeg.set_exif(Some(Bytes::copy_from_slice(&buf.into_inner())));
-                jpeg.encoder().write_to(output2).unwrap();
+                    let mut jpeg = Jpeg::from_bytes(buffer.into()).unwrap();
+                    jpeg.set_exif(Some(Bytes::copy_from_slice(&buf.into_inner())));
+                    jpeg.encoder().write_to(output2).unwrap();
+                }
+                else{
+                    let mut buf_writer = BufWriter::new(File::create(&output).unwrap());
+                    let mut encoder =
+                        jpeg_encoder::Encoder::new(&mut buf_writer, quality.try_into().unwrap());
+                    encoder.set_progressive(true);
+                    encoder
+                        .encode(
+                            &data,
+                            width.try_into().unwrap(),
+                            height.try_into().unwrap(),
+                            jpeg_encoder::ColorType::Rgb,
+                        )
+                        .unwrap();
+                }
             }
             
             Ok("aaa".to_string())
@@ -309,6 +345,8 @@ pub fn raw_process(
     exp_shift: f32,
     threshold: i32,
     quality: i32,
+    embed_exif:bool,
+    font_file:&str,
 ) -> Result<Myexif, String> {
     if let Ok(_) = fs::metadata(&input) {
         let rawdata = read_raw(&input, wb, half_size, exp_shift, threshold);
@@ -317,6 +355,7 @@ pub fn raw_process(
             aperture: rawdata.aperture,
             shutter: rawdata.shutter,
             focal_len: rawdata.focal_len,
+            shooting_date:rawdata.shooting_date,
         };
         if let Ok(_) = fs::metadata(&lut) {
             let lut3d = parse_cube(&lut).unwrap();
@@ -328,6 +367,8 @@ pub fn raw_process(
                 rawdata.height.try_into().unwrap(),
                 quality,
                 &_exif,
+                embed_exif,
+                font_file,
             );
             Ok(_exif)
         } else {
@@ -338,6 +379,8 @@ pub fn raw_process(
                 rawdata.height.try_into().unwrap(),
                 quality,
                 &_exif,
+                embed_exif,
+                font_file,
             );
             Ok(_exif)
         }

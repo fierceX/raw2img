@@ -8,8 +8,11 @@ pub fn login<G: Html>(cx: Scope) -> View<G> {
     let username = create_signal(cx, String::new());
     let password = create_signal(cx, String::new());
     view! { cx,
-        div {
+        div(style="display: flex;justify-content: center;align-items: center;"){
+        div(style="max-width: 80%;") {
+            label(){"用户名"}
             input(type="text",id = "username",name="username",bind:value=username)
+            label(){"密码"}
             input(type="password",id = "password",name="password",bind:value=password)
             button(type="submit",on:click=move|_|{
                 spawn_local_scoped(cx, async move {
@@ -28,7 +31,8 @@ pub fn login<G: Html>(cx: Scope) -> View<G> {
                 }
                 }
             )
-            })
+            }){"登录"}
         }
+    }
     }
 }

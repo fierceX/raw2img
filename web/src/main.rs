@@ -80,7 +80,7 @@ async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
     let user_id = create_rc_signal(-1i32);
 
     let (_is_auth,_user_id) = check_auth().await;
-    // let _is_auth = true;
+    // let _is_auth = false;
     // let _user_id = 1;
     
     user_id.set(_user_id);

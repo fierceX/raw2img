@@ -11,6 +11,9 @@ webp = "0.3"
 jpeg-encoder = "0.3.0"
 kamadak-exif = "0.5.5"
 img-parts = "0.3.0"
+imageproc = "0.25.0"
+chrono = "0.4"
+ab_glyph = "0.2.28"
 serde = { version = "1.0", features = ["derive"] }
 
 [lib]

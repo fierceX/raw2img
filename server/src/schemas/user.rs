@@ -1,6 +1,6 @@
 use juniper::{graphql_object, GraphQLInputObject};
-use crate::schemas::{root::Context,image::Image,storage::Storage};
-
+use crate::schemas::{root::Context,image::Image,image::row2img,storage::Storage,storage::row2storage};
+use rusqlite::Error;
 
 #[derive(Default, Debug)]
 pub struct User {
@@ -54,19 +54,7 @@ impl User {
 
         let mut res = conn.prepare("SELECT * FROM storages WHERE user_id = :user_id").unwrap();
         res.query_map(&[(":user_id", &self.id)],|row| {
-            Ok(Storage {
-                id: row.get(0).unwrap(),
-                user_id: row.get(1).unwrap(),
-                storage_name: row.get(2).unwrap(),
-                storage_path: row.get(3).unwrap_or("".to_string()),
-                storage_type: row.get(4).unwrap(),
-                storage_url: row.get(5).unwrap(),
-                access_key: row.get(6).unwrap_or("".to_string()),
-                secret_key: row.get(7).unwrap_or("".to_string()),
-                bucket_name: row.get(8).unwrap_or("".to_string()),
-                added_time: row.get(9).unwrap(),
-                storage_usage: row.get(10).unwrap(),
-            })
+            row2storage(row)
         }).unwrap().into_iter().filter_map(Result::ok).collect()
     }
     fn images(&self, context: &Context) -> Vec<Image> {
@@ -74,20 +62,19 @@ impl User {
 
         let mut res = conn.prepare("select * from images_view where user_id = :user_id;").unwrap();
         res.query_map(&[(":user_id",&self.id)],|row| {
-            Ok(Image {
-                id: row.get(0).unwrap(),
-                user_id: row.get(1).unwrap(),
-                file_name: row.get(2).unwrap(),
-                cache_file_name: row.get(3).unwrap_or("".to_string()),
-                scan_time: row.get(4).unwrap(),
-                file_size: row.get(5).unwrap(),
-                mime_type: row.get(6).unwrap(),
-                exif: row.get(7).unwrap_or("".to_string()),
-                original_url: row.get(8).unwrap(),
-                cached_url: row.get(9).unwrap_or("".to_string()),
-            })
+            row2img(row)
         }).unwrap().into_iter().filter_map(Result::ok).collect()
-
     }
+}
 
+pub fn row2user(row:&rusqlite::Row<'_>) -> Result<User, Error>{
+    Ok(User{
+        id: row.get(0).unwrap(),
+        name: row.get(1).unwrap(),
+        email: row.get(2).unwrap(),
+        wb: row.get(4).unwrap(),
+        half_size: row.get(5).unwrap(),
+        quality: row.get(6).unwrap(),
+        lut_id: row.get(7).unwrap_or(-1),
+    })
 }

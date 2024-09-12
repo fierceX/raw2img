@@ -7,9 +7,9 @@ use chrono::prelude::*;
 use rusqlite::params;
 use crate::db::Pool;
 
-use super::image::Image;
-use super::storage::{Storage, StorageInput};
-use super::user::{User, UserInput};
+use super::image::{Image,row2img};
+use super::storage::{Storage, StorageInput,row2storage};
+use super::user::{User, UserInput,row2user};
 use super::lut::Lut;
 pub struct Context {
     pub db_pool: Pool,
@@ -28,15 +28,7 @@ impl QueryRoot {
         // let res = conn.execute(sql, params).unwrap();
         let mut res = conn.prepare("select * from users;").unwrap();
         let users:Vec<User> = res.query_map([],|row| {
-            Ok(User {
-                id: row.get(0).unwrap(),
-                name: row.get(1).unwrap(),
-                email: row.get(2).unwrap(),
-                wb: row.get(4).unwrap(),
-                half_size: row.get(5).unwrap(),
-                quality: row.get(6).unwrap(),
-                lut_id: row.get(7).unwrap_or(-1),
-            })
+            row2user(row)
         }).unwrap().into_iter().filter_map(Result::ok).collect();
 
         Ok(users)
@@ -48,15 +40,7 @@ impl QueryRoot {
         let conn = context.db_pool.get().unwrap();
 
         let res = conn.query_row("select * from users where id = :id;", &[(":id",&id)], |row|{
-            Ok(User{
-                id: row.get(0).unwrap(),
-                name: row.get(1).unwrap(),
-                email: row.get(2).unwrap(),
-                wb: row.get(4).unwrap(),
-                half_size: row.get(5).unwrap(),
-                quality: row.get(6).unwrap(),
-                lut_id: row.get(7).unwrap_or(-1),
-            })
+            row2user(row)
         });
         if let Err(_err) = res{
             Err(FieldError::new(
@@ -75,19 +59,7 @@ impl QueryRoot {
 
         let mut res = conn.prepare("select * from storages;").unwrap();
         let products:Vec<Storage> = res.query_map([],|row| {
-            Ok(Storage {
-                id: row.get(0).unwrap(),
-                user_id: row.get(1).unwrap(),
-                storage_name: row.get(2).unwrap(),
-                storage_path: row.get(3).unwrap_or("".to_string()),
-                storage_type: row.get(4).unwrap(),
-                storage_url: row.get(5).unwrap(),
-                access_key: row.get(6).unwrap_or("".to_string()),
-                secret_key: row.get(7).unwrap_or("".to_string()),
-                bucket_name: row.get(8).unwrap_or("".to_string()),
-                added_time: row.get(9).unwrap(),
-                storage_usage: row.get(10).unwrap(),
-            })
+            row2storage(row)
         }).unwrap().into_iter().filter_map(Result::ok).collect();
 
         Ok(products)
@@ -99,19 +71,7 @@ impl QueryRoot {
         let conn = context.db_pool.get().unwrap();
 
         let res = conn.query_row("select * from storages where id = :id;", &[(":id",&id)], |row|{
-            Ok(Storage {
-                id: row.get(0).unwrap(),
-                user_id: row.get(1).unwrap(),
-                storage_name: row.get(2).unwrap(),
-                storage_path: row.get(3).unwrap(),
-                storage_type: row.get(4).unwrap(),
-                storage_url: row.get(5).unwrap(),
-                access_key: row.get(6).unwrap(),
-                secret_key: row.get(7).unwrap(),
-                bucket_name: row.get(8).unwrap(),
-                added_time: row.get(9).unwrap(),
-                storage_usage: row.get(10).unwrap(),
-            })
+            row2storage(row)
         });
         if let Err(_err) = res{
             Err(FieldError::new(
@@ -130,18 +90,7 @@ impl QueryRoot {
         let conn = context.db_pool.get().unwrap();
 
         let res = conn.query_row("select * from images_view where id = :id;", &[(":id",&id)], |row|{
-            Ok(Image {
-                id: row.get(0).unwrap(),
-                user_id: row.get(1).unwrap(),
-                file_name: row.get(2).unwrap(),
-                cache_file_name: row.get(3).unwrap_or("".to_string()),
-                scan_time: row.get(4).unwrap(),
-                file_size: row.get(5).unwrap(),
-                mime_type: row.get(6).unwrap(),
-                exif: row.get(7).unwrap_or("".to_string()),
-                original_url: row.get(8).unwrap(),
-                cached_url: row.get(9).unwrap_or("".to_string()),
-            })
+            row2img(row)
         });
         if let Err(_err) = res{
             Err(FieldError::new(

@@ -2,6 +2,7 @@ use crate::db::{Pool,get_db_pool};
 use crate::handlers::Parameters;
 use actix_web::web;
 use raw::raw_process;
+use raw::Myexif;
 use chrono::prelude::*;
 use blake2;
 use blake2::digest::{Update, VariableOutput};
@@ -69,7 +70,7 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
             for (file_name,file_type,file_size) in file_names{
                 if file_type == "RW2"{
                 conn.execute(
-                    "INSERT OR IGNORE INTO images (user_id, path_id, file_name,scan_time,file_size,mime_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    "INSERT OR IGNORE INTO images (user_id, path_id, file_name,scan_time,shooting_time,file_size,mime_type) VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?6)",
                     (&user_id, &_id,&file_name,&formatted_time,&file_size,&file_type),
                 ).unwrap();
                 
@@ -136,6 +137,8 @@ pub fn raw2(parames:web::Json<Parameters>,pool:Pool) -> Option<String>{
                     parames.exp_shift as f32,
                     parames.threshold,
                     90,
+                    false,
+                    "",
                 );
                 Some(format!("/tmp/{}",out_file_name))
             }
@@ -210,11 +213,14 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
                 -3.0,
                 -3,
                 90,
+                false,
+                ""
             ){
+                // let s = _exif.shooting_date;
                 let _exif_json = serde_json::to_string(&_exif).unwrap();
                 conn.execute(
-                    "UPDATE images SET cache_id = ?2,cache_file_name = ?3, exif = ?4 WHERE id = ?1",
-                    (&_id, &cache_id,&out_file_name,&_exif_json),
+                    "UPDATE images SET cache_id = ?2,cache_file_name = ?3, exif = ?4, shooting_time= ?5 WHERE id = ?1",
+                    (&_id, &cache_id,&out_file_name,&_exif_json,&_exif.shooting_date),
                 ).unwrap();
             }
             

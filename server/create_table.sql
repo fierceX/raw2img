@@ -48,6 +48,7 @@ CREATE TABLE images (
     file_name TEXT NOT NULL,
     cache_file_name TEXT ,
     scan_time DATETIME NOT NULL,
+    shooting_time DATETIME NOT NULL,
     file_size BIGINT NOT NULL,
     mime_type TEXT NOT NULL,
     exif TEXT,
@@ -68,7 +69,7 @@ CREATE TABLE luts(
 DROP VIEW IF EXISTS `images_view`;
 CREATE VIEW images_view AS
 SELECT 
-    images.id,images.user_id,images.file_name,images.cache_file_name,images.scan_time,images.file_size,images.mime_type,images.exif,
+    images.id,images.user_id,images.file_name,images.cache_file_name,images.scan_time,images.shooting_time,images.file_size,images.mime_type,images.exif,
     "/api/img/" || storage_original.storage_url || paths_original.path || "/" || images.file_name AS original_url,
     case storage_cached.storage_type
     when "local" then "/api/img/" || storage_cached.storage_url || paths_cached.path || "/" || images.cache_file_name

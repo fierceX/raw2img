@@ -35,10 +35,18 @@ struct Args {
     /// 降噪参数。当指定该值时，自动降噪将不起作用
     #[arg(short, long,default_value_t = -1)]
     noise: i32,
+
+    /// 是否嵌入exif
+    #[arg(short, long ,default_value_t = true)]
+    embed_exif: bool,
+
+    /// 边框字体，当指定该值时，则会添加边框
+    #[arg(short, long ,default_value = "")]
+    font_file: String,
 }
 
 
 fn main() {
     let args = Args::parse();
-    let _ = raw_process(args.input,args.output,args.lut, args.auto_wb, args.half_size, args.exp_shift, args.noise,args.quality);
+    let _ = raw_process(args.input,args.output,args.lut, args.auto_wb, args.half_size, args.exp_shift, args.noise,args.quality,args.embed_exif,&args.font_file);
 }
