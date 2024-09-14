@@ -87,29 +87,32 @@ async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
         post_graphql::<ImagesQuery, _>(&client, url, variables).await.unwrap();
     // log::info!("{:?}",response_body);
     let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
-    let mut image_list: Vec<(usize,Image)> = response_data.user.images.iter().enumerate().map(|(i,x)| {
+    let mut image_list: Vec<Image> = response_data.user.images.iter().map(|x| {
         
         if let Ok(_exif) = serde_json::from_str(&x.exif) {
         // log::info!("{:?}",x.exif);
         
-            (i,Image{
+            Image{
             id:x.id as i32,
             exif:_exif,
             filename: x.file_name.clone(),
-            url: x.cached_url.clone(),})
+            url: x.cached_url.clone(),}
         }
         else{
-            (i,Image{
+            Image{
                 id:x.id as i32,
                 exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01".to_string()},
                 filename: x.file_name.clone(),
-                url: x.cached_url.clone(),})
+                url: x.cached_url.clone(),}
         }
 
     }).collect();
     // image_list.sort_by_key(|p|p.1.exif.shooting_date);
-    image_list.sort_by(|a,b|b.1.exif.shooting_date.cmp(&a.1.exif.shooting_date));
-    image_list
+    image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
+    image_list.iter().enumerate().map(|(i,x)|{
+        (i,x.clone())
+    }).collect()
+    // image_list
 
     // println!("{:?}",response_data.user.images[1].cache_file_name);
 
