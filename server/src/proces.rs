@@ -1,4 +1,4 @@
-use crate::db::{Pool,get_db_pool};
+use crate::db::{get_db_pool, sync_sqlite_to_tantivy, Pool};
 use crate::handlers::Parameters;
 use actix_web::web;
 use raw::raw_process;
@@ -8,6 +8,7 @@ use blake2;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use rusqlite::named_params;
+use tantivy::Index;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -46,8 +47,9 @@ pub fn scan_directory(dir: &Path, filter_list: &[&str],base_dir:&Path) -> HashMa
     result
 }
 
-pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
-    let conn = pool.lock().unwrap().get().unwrap();
+pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>,index:Arc<Mutex<Index>>){
+    let _pool = pool.lock().unwrap();
+    let conn = _pool.get().unwrap();
 
     let mut res = conn.prepare("select id,storage_name,storage_path from storages where user_id = :user_id and storage_type = :storage_type and storage_usage = 'source';").unwrap();
     let storages:Vec<(i32,String,String)> = res.query_map(named_params!{":user_id":&user_id,":storage_type":"local"},|row| {
@@ -79,7 +81,10 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
             }
         }
     }
-    raw2img(user_id,pool);
+    raw2img(user_id,pool.clone());
+    let _index = index.lock().unwrap();
+    // let _pool = pool.lock().unwrap().get();
+    sync_sqlite_to_tantivy(&_pool, &_index);
 }
 
 pub fn raw2(parames:web::Json<Parameters>,pool:Pool) -> Option<String>{

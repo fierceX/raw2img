@@ -41,6 +41,14 @@ struct Image {
 )]
 pub struct ImagesQuery;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "schemas.json",
+    query_path = "search.graphql",
+    response_derives = "Debug",
+)]
+pub struct ImagesSearch;
+
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -118,6 +126,60 @@ async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
 
     // log::info!("{:?}",response_data.user.images);
 }
+
+
+async fn search(user_id:i32, url:&str, query:&str) -> Vec<(usize, Image)> {
+    // let base_url = web_sys::window().unwrap().location().origin().unwrap();
+    // let url = format!("{}/api/graphql", base_url);
+    // let url = format!("http://127.0.0.1:8081/api/graphql");
+    
+    let client = reqwest::Client::new();
+    let query_str = if query != ""{
+        query
+    }
+    else{
+        "*"
+    };
+    let variables = images_search::Variables {
+        id: user_id.to_string(),
+        query:query_str.to_string(),
+    };
+    let response_body = 
+        post_graphql::<ImagesSearch, _>(&client, url, variables).await.unwrap();
+    // log::info!("{:?}",response_body);
+    let response_data: images_search::ResponseData = response_body.data.expect("missing response data");
+    let mut image_list: Vec<Image> = response_data.user.search.iter().map(|x| {
+        
+        if let Ok(_exif) = serde_json::from_str(&x.exif) {
+        // log::info!("{:?}",x.exif);
+        
+            Image{
+            id:x.id as i32,
+            exif:_exif,
+            filename: x.file_name.clone(),
+            url: x.cached_url.clone(),}
+        }
+        else{
+            Image{
+                id:x.id as i32,
+                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01".to_string()},
+                filename: x.file_name.clone(),
+                url: x.cached_url.clone(),}
+        }
+
+    }).collect();
+    // image_list.sort_by_key(|p|p.1.exif.shooting_date);
+    image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
+    image_list.iter().enumerate().map(|(i,x)|{
+        (i,x.clone())
+    }).collect()
+    // image_list
+
+    // println!("{:?}",response_data.user.images[1].cache_file_name);
+
+    // log::info!("{:?}",response_data.user.images);
+}
+
 
 async fn get_jpg(params: Parameters,base_url:&str) -> String {
     // let base_url = web_sys::window().unwrap().location().origin().unwrap();
@@ -199,6 +261,9 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
 
     let base_url_c = create_signal(cx,base_url);
     let graphql_url_c = create_signal(cx,graphql_url);
+
+
+    let search_query = create_signal(cx, String::new());
 
 
     // 处理图片点击事件
@@ -297,12 +362,31 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         })
     };
 
+    let image_search =  move |_| {
+        spawn_local_scoped(cx, async move {
+            let url_file = img_url
+                .get()
+                .to_string()
+                .split("/")
+                .last()
+                .unwrap()
+                .to_string();
+            // let file_name = images.get()[*current_index.get()].1.filename.clone();
+            // let image_id = images.get()[*current_index.get()].1.id.clone();
+            // save_jpg(url_file, image_id,base_url_c.get().as_str()).await;
+            images.set(search(*user_id.get(),graphql_url_c.get().as_str(),search_query.get().as_str()).await);
+            is_edit.set(false);
+        })
+    };
+
     
     // let luts: &Signal<Vec<(String,String)>> = create_signal(cx, Vec::new());
     view! {cx,
-        
-
-
+        // p(data-tooltip="aaa"){"自定义搜索"}
+        div(role="search"){
+            input(type="search",bind:value=search_query)
+            input(type="submit",value="搜索",on:click=image_search)
+        }
         div(class="custom-grid",hidden=*is_zoomed.get() || *is_edit.get()){
             Indexed(
                 iterable=images,
@@ -310,21 +394,27 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 view! {cx,
                         article(){
 
-                                header(){
-                                        small(on:click=move |_| {
-                                            current_index.set(index);
-                                            let _image = images.get()[index].1.clone();
-                                            is_edit.set(true);
-                                            file_name.set(_image.filename);
-                                            img_url.set(_image.url);
-                                        }){(image.filename)}
+                                header(style="display: flex; justify-content: space-between;"){
+                                        // small(){
+
+                                            i(class="bx bx-wrench",style="margin-right: 20px;",on:click=move |_| {
+                                                current_index.set(index);
+                                                let _image = images.get()[index].1.clone();
+                                                is_edit.set(true);
+                                                file_name.set(_image.filename);
+                                                img_url.set(_image.url);
+                                            })
+                                            i(class="bx bx-info-circle")
+                                            // i(class="bx bx-aperture"){p(data-tooltip=image.exif.shooting_date)}
+                                        // }
                                 }
                                 img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=image.url,on:click=move |_| handle_image_click(index))
                                 footer(){
                                     small(){
                                         i(class="bx bx-aperture",style="margin-right: 20px;"){(image.exif.aperture)}
-                                        i(class="bx bx-time-five",style="margin-right: 20px;"){((1.0/image.exif.shutter).round())}
-                                        i(class="bx bx-album"){(image.exif.focal_len) " mm"}
+                                        i(class="bx bx-time-five",style="margin-right: 20px;"){"1/"((1.0/image.exif.shutter).round())}
+                                        i(class="bx bx-album",style="margin-right: 20px;"){(image.exif.focal_len)}
+                                        i(class="bx bx-adjust"){(image.exif.iso)}
                                         }
                                 }
                             }
