@@ -29,7 +29,7 @@ futures-util = "0.3.30"
 log = "0.4.22"
 sanitize-filename = "0.5"
 uuid = {version = "1.10.0",features = ["v4"]}
-chrono = "0.4"
+chrono = "0.4.38"
 
 jwt-simple = "0.12"
 
@@ -37,6 +37,7 @@ juniper = "0.16"
 r2d2_sqlite = "0.25.0"
 r2d2 = "0.8.10"
 rusqlite = "0.32.1"
+tantivy = "0.22.0"
 
 [build-dependencies]
 static-files = "0.2.1"

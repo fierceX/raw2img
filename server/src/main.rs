@@ -10,7 +10,7 @@ mod handlers;
 mod schemas;
 mod proces;
 
-use self::{db::get_db_pool, handlers::register};
+use self::{db::{create_tantivy_index,sync_sqlite_to_tantivy,get_db_pool}, handlers::register};
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -20,6 +20,9 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let pool = get_db_pool();
+    let index = create_tantivy_index().unwrap();
+
+    sync_sqlite_to_tantivy(&pool,&index);
 
     log::info!("starting HTTP server on port 8081");
     log::info!("GraphiQL playground: http://localhost:8081/graphiql");
@@ -30,6 +33,7 @@ async fn main() -> std::io::Result<()> {
         let generated = generate();
         App::new()
             .app_data(Data::new(pool.clone()))
+            .app_data(Data::new(index.clone()))
             .configure(register)
             .wrap(Cors::permissive())
             .service(Files::new("/tmp", "./tmp"))

@@ -1,0 +1,22 @@
+query ImagesSearch($id: String!,$query: String!) {
+  user(id: $id) {
+    id
+    name
+    email
+    wb
+    halfSize
+    quality
+    lutId
+    search(query: $query) {
+      cacheFileName
+      cachedUrl
+      fileName
+      fileSize
+      id
+      mimeType
+      originalUrl
+      scanTime
+      exif
+    }
+  }
+}

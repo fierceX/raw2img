@@ -5,6 +5,7 @@ use juniper::{
 };
 use chrono::prelude::*;
 use rusqlite::params;
+use tantivy::Index;
 use crate::db::Pool;
 
 use super::image::{Image,row2img};
@@ -13,6 +14,7 @@ use super::user::{User, UserInput,row2user};
 use super::lut::Lut;
 pub struct Context {
     pub db_pool: Pool,
+    pub index: Index,
 }
 
 impl juniper::Context for Context {}

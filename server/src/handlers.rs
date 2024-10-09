@@ -16,6 +16,7 @@ use jwt_simple::{
 use raw::raw_process;
 use rusqlite::named_params;
 use serde::{Deserialize, Serialize};
+use tantivy::Index;
 
 use std::sync::{Arc, Mutex};
 use std::{
@@ -25,7 +26,7 @@ use std::{
 };
 
 use crate::{
-    db::{get_db_pool, Pool},
+    db::{get_db_pool, Pool,create_tantivy_index},
     proces::{self, raw2img, scan_files},
     schemas::{
         root::{create_schema, Context, Schema},
@@ -65,12 +66,14 @@ pub struct Parameters {
 /// GraphQL endpoint
 #[route("/graphql", method = "GET", method = "POST")]
 pub async fn graphql(
+    index: web::Data<Index>,
     pool: web::Data<Pool>,
     schema: web::Data<Schema>,
     data: web::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     let ctx = Context {
         db_pool: pool.get_ref().to_owned(),
+        index:index.get_ref().to_owned(),
     };
 
     let res = data.execute(&schema, &ctx).await;
@@ -171,10 +174,11 @@ async fn auth(session: Session, pool: web::Data<Pool>, form: web::Form<FormData2
 }
 
 #[route("/scan", method = "POST")]
-async fn scans(pool: web::Data<Pool>, user_id: web::Json<i32>) -> HttpResponse {
+async fn scans(pool: web::Data<Pool>,index: web::Data<Index>, user_id: web::Json<i32>) -> HttpResponse {
     let _pool = Arc::new(Mutex::new(pool.get_ref().to_owned()));
+    let _index = Arc::new(Mutex::new(index.get_ref().to_owned()));
     let _handle = thread::spawn(move || {
-        scan_files(*user_id, _pool);
+        scan_files(*user_id, _pool,_index);
     });
     HttpResponse::Ok().body("")
 }
@@ -223,6 +227,7 @@ async fn raw2jpg(
 async fn savejpg(
     session: Session,
     pool: web::Data<Pool>,
+    index: web::Data<Index>,
     parames: web::Json<(String, i32)>,
 ) -> HttpResponse {
     // if let Ok(Some(userid)) = session.get::<String>("userid") {
