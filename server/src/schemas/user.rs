@@ -92,7 +92,7 @@ impl User {
 
 
 
-        let top_docs = searcher.search(&queryq, &TopDocs::with_limit(10)).unwrap();
+        let top_docs = searcher.search(&queryq, &TopDocs::with_limit(1000)).unwrap();
 
         println!("{:?}",top_docs);
 

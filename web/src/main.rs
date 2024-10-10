@@ -1,7 +1,8 @@
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use sycamore::{futures::spawn_local_scoped, web::html::nav};
 use sycamore::prelude::*;
+use sycamore::web::html::select;
+use sycamore::{futures::spawn_local_scoped, web::html::nav};
 use sycamore_router::{navigate, HistoryIntegration, Route, Router, RouterProps};
 
 use graphql_client::{reqwest::post_graphql, GraphQLQuery};
@@ -21,13 +22,13 @@ use pages::{home, login, setting};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct User {
-    id:i32,
-    name:String,
+    id: i32,
+    name: String,
     email: String,
     wb: bool,
-    halfSize:bool,
-    quality:i32,
-    lutId:i32,
+    halfSize: bool,
+    quality: i32,
+    lutId: i32,
 }
 
 #[derive(Route)]
@@ -42,24 +43,24 @@ enum AppRoutes {
     NotFound,
 }
 
-
-async fn check_auth() -> (bool,i32){
+async fn check_auth() -> (bool, i32) {
     // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = "/api/check_auth";
-    let url = format!("{}/api/check_auth",web_sys::window().unwrap().location().origin().unwrap());
-    let res = reqwest::Client::new().post(url)
-    .send().await.unwrap();
-    if res.status() == StatusCode::OK{
-        let user_id:String = res.json().await.unwrap();
-        (true,user_id.parse().unwrap())
-    }
-    else{
-        (false,-1)
+    let url = format!(
+        "{}/api/check_auth",
+        web_sys::window().unwrap().location().origin().unwrap()
+    );
+    let res = reqwest::Client::new().post(url).send().await.unwrap();
+    if res.status() == StatusCode::OK {
+        let user_id: String = res.json().await.unwrap();
+        (true, user_id.parse().unwrap())
+    } else {
+        (false, -1)
     }
 }
 
-fn Header<G: Html>(cx: Scope) -> View<G>{
-    view!{cx,
+fn Header<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
     header(class="container"){
         div(class="grid"){
       hgroup{
@@ -72,21 +73,19 @@ fn Header<G: Html>(cx: Scope) -> View<G>{
     }
 }
 
-
-
 #[component]
 async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
     let is_auth = create_signal(cx, true);
     let user_id = create_rc_signal(-1i32);
 
     let (_is_auth,_user_id) = check_auth().await;
-    // let _is_auth = false;
+    // let _is_auth = true;
     // let _user_id = 1;
-    
+
     user_id.set(_user_id);
     is_auth.set(_is_auth);
-    log::info!("{} {}",is_auth,user_id);
-    provide_context(cx,user_id);
+    log::info!("{} {}", is_auth, user_id);
+    provide_context(cx, user_id);
     view! {cx,
         Router(
             integration=HistoryIntegration::new(),
@@ -135,22 +134,8 @@ async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
     }
 }
 
-// #[component]
-// fn App<G: Html>(cx: Scope) -> View<G> {
-//     view! {cx,
-//         main(class="container"){
-//         div{
-//             // Suspense(fallback=view! { cx, "Loading..." }) {
-//             //     Body()
-//             // } 
-//             Body()
-//         }
-//     }
-//     }
-// }
 
 fn main() {
-    
     console_log::init_with_level(log::Level::Debug).unwrap();
     sycamore::render(|cx| view! { cx, App {} });
 }
