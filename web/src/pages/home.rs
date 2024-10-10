@@ -263,7 +263,17 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
     let graphql_url_c = create_signal(cx,graphql_url);
 
 
-    let search_query = create_signal(cx, String::new());
+    let query_value = create_signal(cx, String::new());
+
+    let start_date = create_signal(cx, "".to_string());
+    let end_date = create_signal(cx, "".to_string());
+
+    let selected_items = create_signal(cx, vec![]);
+
+    let buquan_disply = create_signal(cx, "none;");
+
+    let input_value = create_signal(cx, "".to_string());
+
 
 
     // 处理图片点击事件
@@ -374,19 +384,105 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             // let file_name = images.get()[*current_index.get()].1.filename.clone();
             // let image_id = images.get()[*current_index.get()].1.id.clone();
             // save_jpg(url_file, image_id,base_url_c.get().as_str()).await;
-            images.set(search(*user_id.get(),graphql_url_c.get().as_str(),search_query.get().as_str()).await);
+            images.set(search(*user_id.get(),graphql_url_c.get().as_str(),query_value.get().as_str()).await);
             is_edit.set(false);
         })
+    };
+
+    let candidate = move |_| {
+        buquan_disply.set("");
+        let input = input_value.get();
+        let mut ddd: Vec<(String, String)> = Vec::new();
+        if input != "".to_string().into() {
+            if input.parse::<i32>().is_ok() {
+                let _x = format!("focal_len:{}", input);
+                ddd.push((_x.clone(), _x));
+            }
+            if input.parse::<f32>().is_ok() {
+                let _x = format!("iso:{}", input);
+                ddd.push((_x.clone(), _x));
+                let _x = format!("aperture:{}", input);
+                ddd.push((_x.clone(), _x));
+                let _x = format!("shutter:{}", input);
+                ddd.push((_x.clone(), _x));
+            }
+            let _x = format!("file_name:{}", input);
+            ddd.push((_x.clone(), _x));
+        }
+        selected_items.set(ddd);
+    };
+
+    let add_item = move |item: &String| {
+        let _query_value = query_value.get();
+        if _query_value == "".to_string().into() {
+            query_value.set(format!("{0}", item));
+        } else {
+            query_value.set(format!("{0} AND {1}", _query_value, item));
+        }
+
+        input_value.set("".to_string());
+        selected_items.set(vec![]);
     };
 
     
     // let luts: &Signal<Vec<(String,String)>> = create_signal(cx, Vec::new());
     view! {cx,
         // p(data-tooltip="aaa"){"自定义搜索"}
-        div(role="search"){
-            input(type="search",bind:value=search_query)
-            input(type="submit",value="搜索",on:click=image_search)
+
+        div {
+            details(){
+                summary(){"搜索"}
+                article(){
+                    header(){
+                        div(class="grid"){
+                            input(type="date",bind:value=start_date){}
+                            input(type="date",bind:value=end_date,on:change=move |_|{
+                                if end_date.get() > start_date.get(){
+                                    add_item(&format!("shooting_date:[{0}T00:00:00+08:00 TO {1}T00:00:00+08:00]",start_date.get(),end_date.get()));
+                                }
+                                else{
+                                    end_date.set("".to_string())
+                                }
+                            }){}
+
+                        div {
+                            input(
+                                placeholder="Type to search...",
+                                bind:value=input_value,
+                                on:input=candidate,
+                                on:blur = |_|{
+                                    buquan_disply.set("none;");
+                                }
+                            )
+                            div(){
+                                ul {
+                                    Keyed (
+                                        iterable=selected_items,
+                                        view= move |cx, (item_0,item_1)| view! { cx,
+                                            li(on:click=move |_| add_item(&item_0)) { (item_1) }
+                                        },
+                                        key=|item| item.clone(),
+                                    )
+                                    }
+                                }  
+                            }
+                        }
+                    }
+
+            
+                    input(value=query_value.get(),readonly=true)
+                    footer(style="display: flex;justify-content: center;align-items: center;"){
+                        button(on:click=move |_| query_value.set("".to_string())){"Clear"}
+                        button(on:click=image_search){"Search"}
+                    }
+                }
+            }
         }
+
+        // div(role="search"){
+        //     input(type="search",bind:value=search_query)
+        //     input(type="submit",value="搜索",on:click=image_search)
+        // }
         div(class="custom-grid",hidden=*is_zoomed.get() || *is_edit.get()){
             Indexed(
                 iterable=images,
