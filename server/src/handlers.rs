@@ -26,7 +26,7 @@ use std::{
 };
 
 use crate::{
-    db::{get_db_pool, Pool,create_tantivy_index},
+    db::{create_tantivy_index, get_db_pool, sync_sqlite_to_tantivy, Pool},
     proces::{self, raw2img, scan_files},
     schemas::{
         root::{create_schema, Context, Schema},
@@ -94,7 +94,7 @@ async fn check_auth(session: Session) -> HttpResponse {
         session.get::<String>("userid"),
         session.get::<String>("passkey"),
     ) {
-        log::info!("v: {} {}", userid, passkey);
+        // log::info!("v: {} {}", userid, passkey);
         let key = HS256Key::from_bytes(&"key".try_into_bytes().unwrap());
         match key.verify_token::<NoCustomClaims>(&passkey, None) {
             Ok(_claims) => {
@@ -138,7 +138,7 @@ async fn create_user(
 
 #[route("/auth", method = "POST")]
 async fn auth(session: Session, pool: web::Data<Pool>, form: web::Form<FormData2>) -> HttpResponse {
-    log::info!("bbddeevv123");
+    // log::info!("bbddeevv123");
     let db_conn = pool.get_ref().to_owned();
 
     let (user_id, password): (i32, String) = db_conn
@@ -203,7 +203,7 @@ async fn get_image(
         .unwrap();
 
     let path = format!("{}/{}", storage_path, _path);
-    log::info!("{}", path);
+    // log::info!("{}", path);
     if Path::new(&path).exists() {
         Ok(NamedFile::open(path).unwrap())
     } else {
@@ -233,7 +233,8 @@ async fn savejpg(
     // if let Ok(Some(userid)) = session.get::<String>("userid") {
     println!("{:?}", parames);
     let _parames = parames.0;
-    let db_conn = pool.get_ref().to_owned().get().unwrap();
+    let _pool = pool.get_ref().to_owned();
+    let db_conn = _pool.get().unwrap();
 
     let cached_path: String = db_conn
         .query_row(
@@ -252,11 +253,11 @@ async fn savejpg(
         )
         .unwrap();
 
-    log::info!(
-        "{} {}",
-        format!("./tmp/{}", _parames.0),
-        format!("{}/{}", cached_path, _parames.0)
-    );
+    // log::info!(
+    //     "{} {}",
+    //     format!("./tmp/{}", _parames.0),
+    //     format!("{}/{}", cached_path, _parames.0)
+    // );
     fs::rename(
         format!("./tmp/{}", _parames.0),
         format!("{}/{}", cached_path, _parames.0),
@@ -267,6 +268,9 @@ async fn savejpg(
             (&_parames.1, &_parames.0),
         )
         .unwrap();
+    let _index = index.get_ref().to_owned();
+    sync_sqlite_to_tantivy(&_pool, &_index);
+
     HttpResponse::Ok().body("")
 }
 
@@ -325,12 +329,12 @@ async fn authentication(
     next: Next<impl MessageBody>,
 ) -> Result<ServiceResponse<impl MessageBody>, Error> {
     // pre-processing
-    log::info!("vvddd");
+    // log::info!("vvddd");
     if let (Ok(Some(userid)), Ok(Some(passkey))) = (
         session.get::<String>("userid"),
         session.get::<String>("passkey"),
     ) {
-        log::info!("v: {} {}", userid, passkey);
+        // log::info!("v: {} {}", userid, passkey);
         let key = HS256Key::from_bytes(&"key".try_into_bytes().unwrap());
         match key.verify_token::<NoCustomClaims>(&passkey, None) {
             Ok(_claims) => {

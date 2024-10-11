@@ -1,6 +1,6 @@
 use actix_cors::Cors;
 use actix_files::Files;
-use actix_web::{cookie::Key, middleware::Logger, web::Data, App, HttpServer};
+use actix_web::{cookie::Key, middleware::{Logger,Compress}, web::Data, App, HttpServer};
 use actix_session::{storage::CookieSessionStore, Session, SessionMiddleware};
 use actix_web_static_files::ResourceFiles;
 
@@ -32,12 +32,14 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         let generated = generate();
         App::new()
+            
             .app_data(Data::new(pool.clone()))
             .app_data(Data::new(index.clone()))
             .configure(register)
             .wrap(Cors::permissive())
             .service(Files::new("/tmp", "./tmp"))
             .service(ResourceFiles::new("/", generated))
+            .wrap(Compress::default())
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
                     .cookie_secure(false)
