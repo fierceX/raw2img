@@ -119,7 +119,7 @@ async fn getrawfiles(user_id:i32, url:&str) -> (Vec<Image>,Vec<(String, Vec<(usi
     }).collect();
     // image_list.sort_by_key(|p|p.1.exif.shooting_date);
     image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
-    (image_list.clone(),image_list.iter().enumerate().map(|(i,x)|{
+    let mut images:Vec<(String,Vec<(usize,Image)>)> = image_list.iter().enumerate().map(|(i,x)|{
         (i,x.clone())
     }).into_iter()
     .fold(HashMap::new(), |mut map, image| {
@@ -127,7 +127,10 @@ async fn getrawfiles(user_id:i32, url:&str) -> (Vec<Image>,Vec<(String, Vec<(usi
         map.entry(date).or_insert_with(Vec::new).push(image);
         map
     }).into_iter()
-    .collect())
+    .collect();
+
+    images.sort_by(|a,b|b.0.cmp(&a.0));
+    (image_list.clone(),images)
 
 }
 
@@ -177,8 +180,7 @@ async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, V
     // image_list.iter().enumerate().map(|(i,x)|{
     //     (i,x.clone())
     // }).collect()
-
-    (image_list.clone(),image_list.iter().enumerate().map(|(i,x)|{
+    let mut images:Vec<(String,Vec<(usize,Image)>)> = image_list.iter().enumerate().map(|(i,x)|{
         (i,x.clone())
     }).into_iter()
     .fold(HashMap::new(), |mut map, image| {
@@ -186,8 +188,10 @@ async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, V
         map.entry(date).or_insert_with(Vec::new).push(image);
         map
     }).into_iter()
-    .collect())
-    // image_list
+    .collect();
+    images.sort_by(|a,b|b.0.cmp(&a.0));
+    (image_list.clone(),images)
+    // image_list.
 
     // println!("{:?}",response_data.user.images[1].cache_file_name);
 
