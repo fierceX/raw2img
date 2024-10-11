@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use sycamore::{futures::spawn_local_scoped, web::html::img};
 use sycamore::prelude::*;
@@ -82,7 +84,7 @@ async fn getluts(url:&str) -> Vec<(String, String)> {
     response_data.luts.iter().map(|x| (format!("{}/{}",x.path.clone(),x.lut_name.clone()),x.lut_name.clone())).collect()
 }
 
-async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
+async fn getrawfiles(user_id:i32, url:&str) -> (Vec<Image>,Vec<(String, Vec<(usize, Image)>)>) {
     // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
@@ -117,18 +119,20 @@ async fn getrawfiles(user_id:i32, url:&str) -> Vec<(usize, Image)> {
     }).collect();
     // image_list.sort_by_key(|p|p.1.exif.shooting_date);
     image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
-    image_list.iter().enumerate().map(|(i,x)|{
+    (image_list.clone(),image_list.iter().enumerate().map(|(i,x)|{
         (i,x.clone())
-    }).collect()
-    // image_list
+    }).into_iter()
+    .fold(HashMap::new(), |mut map, image| {
+        let date = image.1.exif.shooting_date.split_once(" ").unwrap().0.to_string();
+        map.entry(date).or_insert_with(Vec::new).push(image);
+        map
+    }).into_iter()
+    .collect())
 
-    // println!("{:?}",response_data.user.images[1].cache_file_name);
-
-    // log::info!("{:?}",response_data.user.images);
 }
 
 
-async fn search(user_id:i32, url:&str, query:&str) -> Vec<(usize, Image)> {
+async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, Vec<(usize, Image)>)>) {
     // let base_url = web_sys::window().unwrap().location().origin().unwrap();
     // let url = format!("{}/api/graphql", base_url);
     // let url = format!("http://127.0.0.1:8081/api/graphql");
@@ -170,9 +174,19 @@ async fn search(user_id:i32, url:&str, query:&str) -> Vec<(usize, Image)> {
     }).collect();
     // image_list.sort_by_key(|p|p.1.exif.shooting_date);
     image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
-    image_list.iter().enumerate().map(|(i,x)|{
+    // image_list.iter().enumerate().map(|(i,x)|{
+    //     (i,x.clone())
+    // }).collect()
+
+    (image_list.clone(),image_list.iter().enumerate().map(|(i,x)|{
         (i,x.clone())
-    }).collect()
+    }).into_iter()
+    .fold(HashMap::new(), |mut map, image| {
+        let date = image.1.exif.shooting_date.split_once(" ").unwrap().0.to_string();
+        map.entry(date).or_insert_with(Vec::new).push(image);
+        map
+    }).into_iter()
+    .collect())
     // image_list
 
     // println!("{:?}",response_data.user.images[1].cache_file_name);
@@ -236,9 +250,20 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
 
     let images = create_signal(cx, Vec::new());
 
+    let images_list = create_signal(cx, Vec::new());
+
     let user_id = use_context::<RcSignal<i32>>(cx);
 
-    images.set(getrawfiles(*user_id.get(),&graphql_url).await);
+    let (_images_list,_images) = getrawfiles(*user_id.get(),&graphql_url).await;
+    let mut _images_:Vec<(String,&Signal<Vec<(usize,Image)>>)> = Vec::new();
+    for i in _images.iter(){
+        let _x = create_signal(cx, Vec::new());
+        _x.set(i.1.clone());
+        _images_.push((i.0.clone(),_x));
+    }
+
+    images.set(_images_);
+    images_list.set(_images_list);
 
     
 
@@ -305,8 +330,8 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             //     .get::<DomNode>()
             //     .unchecked_into::<HtmlOptionElement>()
             //     .value();
-            let filename = images.get()[*current_index.get()].1.filename.clone();
-            let image_id = images.get()[*current_index.get()].1.id.clone();
+            let filename = images_list.get()[*current_index.get()].filename.clone();
+            let image_id = images_list.get()[*current_index.get()].id.clone();
             let wb = auto_wb_ref
                 .get::<DomNode>()
                 .unchecked_into::<HtmlInputElement>()
@@ -364,10 +389,18 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 .last()
                 .unwrap()
                 .to_string();
-            // let file_name = images.get()[*current_index.get()].1.filename.clone();
-            let image_id = images.get()[*current_index.get()].1.id.clone();
+            let image_id = images_list.get()[*current_index.get()].id.clone();
             save_jpg(url_file, image_id,base_url_c.get().as_str()).await;
-            images.set(getrawfiles(*user_id.get(),graphql_url_c.get().as_str()).await);
+            let (_images_list,_images) = getrawfiles(*user_id.get(),graphql_url_c.get().as_str()).await;
+            let mut _images_:Vec<(String,&Signal<Vec<(usize,Image)>>)> = Vec::new();
+            for i in _images.iter(){
+                let _x = create_signal(cx, Vec::new());
+                _x.set(i.1.clone());
+                _images_.push((i.0.clone(),_x));
+            }
+
+            images.set(_images_);
+            images_list.set(_images_list);
             is_edit.set(false);
         })
     };
@@ -384,7 +417,16 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             // let file_name = images.get()[*current_index.get()].1.filename.clone();
             // let image_id = images.get()[*current_index.get()].1.id.clone();
             // save_jpg(url_file, image_id,base_url_c.get().as_str()).await;
-            images.set(search(*user_id.get(),graphql_url_c.get().as_str(),query_value.get().as_str()).await);
+
+            let (_images_list,_images) = search(*user_id.get(),graphql_url_c.get().as_str(),query_value.get().as_str()).await;
+            let mut _images_:Vec<(String,&Signal<Vec<(usize,Image)>>)> = Vec::new();
+            for i in _images.iter(){
+                let _x = create_signal(cx, Vec::new());
+                _x.set(i.1.clone());
+                _images_.push((i.0.clone(),_x));
+            }
+            images.set(_images_);
+            images_list.set(_images_list);
             is_edit.set(false);
         })
     };
@@ -425,9 +467,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
     };
 
     
-    // let luts: &Signal<Vec<(String,String)>> = create_signal(cx, Vec::new());
     view! {cx,
-        // p(data-tooltip="aaa"){"自定义搜索"}
 
         div {
             details(){
@@ -479,49 +519,56 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             }
         }
 
-        // div(role="search"){
-        //     input(type="search",bind:value=search_query)
-        //     input(type="submit",value="搜索",on:click=image_search)
-        // }
-        div(class="custom-grid",hidden=*is_zoomed.get() || *is_edit.get()){
+
+        div(class="row",hidden=*is_zoomed.get() || *is_edit.get()){
             Indexed(
                 iterable=images,
-                view=move |cx, (index,image)|
+                view=move |cx, (date,image)|
                 view! {cx,
-                        article(){
+                    div(class="row"){
+                        h6(){(date)}
+                    div(class="custom-grid"){
+                        
+                    Indexed(
+                        iterable=image,
+                        view=move |cx, (index,aimage)|
+                        view! {cx,
+                                article(){
 
-                                header(style="display: flex; justify-content: space-between;"){
-                                        // small(){
-
-                                            i(class="bx bx-wrench",style="margin-right: 20px;",on:click=move |_| {
-                                                current_index.set(index);
-                                                let _image = images.get()[index].1.clone();
-                                                is_edit.set(true);
-                                                file_name.set(_image.filename);
-                                                img_url.set(_image.url);
-                                            })
-                                            i(class="bx bx-info-circle")
-                                            // i(class="bx bx-aperture"){p(data-tooltip=image.exif.shooting_date)}
-                                        // }
+                                    header(style="display: flex; justify-content: space-between;"){
+                            
+                                                i(class="bx bx-wrench",style="margin-right: 20px;",on:click=move |_| {
+                                                    current_index.set(index);
+                                                    let _image = images_list.get()[index].clone();
+                                                    is_edit.set(true);
+                                                    file_name.set(_image.filename);
+                                                    img_url.set(_image.url);
+                                                })
+                                                i(class="bx bx-info-circle")
+                                                
+                                    }
+                                    img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=aimage.url,on:click=move |_| handle_image_click(index))
+                                    footer(){
+                                        small(){
+                                            i(class="bx bx-aperture",style="margin-right: 20px;"){(aimage.exif.aperture)}
+                                            i(class="bx bx-time-five",style="margin-right: 20px;"){"1/"((1.0/aimage.exif.shutter).round())}
+                                            i(class="bx bx-album",style="margin-right: 20px;"){(aimage.exif.focal_len)}
+                                            i(class="bx bx-adjust"){(aimage.exif.iso)}
+                                            }
+                                    }
                                 }
-                                img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=image.url,on:click=move |_| handle_image_click(index))
-                                footer(){
-                                    small(){
-                                        i(class="bx bx-aperture",style="margin-right: 20px;"){(image.exif.aperture)}
-                                        i(class="bx bx-time-five",style="margin-right: 20px;"){"1/"((1.0/image.exif.shutter).round())}
-                                        i(class="bx bx-album",style="margin-right: 20px;"){(image.exif.focal_len)}
-                                        i(class="bx bx-adjust"){(image.exif.iso)}
-                                        }
-                                }
-                            }
-                    },
-                )
+                        }
+                    )
+                }
             }
+                }
+            )
+        }
 
         (if *is_zoomed.get() {
                 view! { cx,
                     div(class="image-container") {
-                        img(src=images.get()[*current_index.get()].1.url,class="zoomed", on:click=move |_| is_zoomed.set(false))
+                        img(src=images_list.get()[*current_index.get()].url,class="zoomed", on:click=move |_| is_zoomed.set(false))
                         div(class="button-container-prev"){
                             button(class="prev-button", on:click=handle_prev_click) { "" }
                         }
