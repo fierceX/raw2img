@@ -32,6 +32,7 @@ struct Image {
     exif:Myexif,
     filename: String,
     url: String,
+    originalUrl:String,
 }
 
 
@@ -100,20 +101,21 @@ async fn getrawfiles(user_id:i32, url:&str) -> (Vec<Image>,Vec<(String, Vec<(usi
     let mut image_list: Vec<Image> = response_data.user.images.iter().map(|x| {
         
         if let Ok(_exif) = serde_json::from_str(&x.exif) {
-        // log::info!("{:?}",x.exif);
-        
+        // let xx = format!("http://127.0.0.1:8081{0}",x.cached_url);
             Image{
             id:x.id as i32,
             exif:_exif,
             filename: x.file_name.clone(),
-            url: x.cached_url.clone(),}
+            url: x.cached_url.clone(),
+            originalUrl:x.original_url.clone()}
         }
         else{
             Image{
                 id:x.id as i32,
                 exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01 00:00:00".to_string()},
                 filename: x.file_name.clone(),
-                url: x.cached_url.clone(),}
+                url: x.cached_url.clone(),
+                originalUrl:x.original_url.clone()}
         }
 
     }).collect();
@@ -158,20 +160,21 @@ async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, V
     let mut image_list: Vec<Image> = response_data.user.search.iter().map(|x| {
         
         if let Ok(_exif) = serde_json::from_str(&x.exif) {
-        // log::info!("{:?}",x.exif);
-        
+
             Image{
             id:x.id as i32,
             exif:_exif,
             filename: x.file_name.clone(),
-            url: x.cached_url.clone(),}
+            url: x.cached_url.clone(),
+            originalUrl:x.original_url.clone()}
         }
         else{
             Image{
                 id:x.id as i32,
                 exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01 00:00:00".to_string()},
                 filename: x.file_name.clone(),
-                url: x.cached_url.clone(),}
+                url: x.cached_url.clone(),
+                originalUrl:x.original_url.clone()}
         }
 
     }).collect();
@@ -281,7 +284,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
     // 当前显示的图片索引
     let current_index = create_signal(cx, 0);
 
-    // 图片是否放大的状态
+    // 图片是否显示详情
     let is_zoomed = create_signal(cx, false);
 
     let is_edit = create_signal(cx, false);
@@ -302,26 +305,6 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
     let buquan_disply = create_signal(cx, "none;");
 
     let input_value = create_signal(cx, "".to_string());
-
-
-
-    // 处理图片点击事件
-    let handle_image_click = move |index: usize| {
-        current_index.set(index);
-        is_zoomed.set(!*is_zoomed.get());
-    };
-
-    // 处理左切换按钮点击事件
-    let handle_prev_click = move |_| {
-        // log::info!("{:?}", *current_index.get());
-        current_index.set((*current_index.get() + images.get().len() - 1) % images.get().len());
-    };
-
-    // 处理右切换按钮点击事件
-    let handle_next_click = move |_| {
-        // log::info!("{:?}", *current_index.get());
-        current_index.set((*current_index.get() + 1) % images.get().len());
-    };
 
     let bat = move |_| {
         spawn_local_scoped(cx, async move {
@@ -411,16 +394,6 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
 
     let image_search =  move |_| {
         spawn_local_scoped(cx, async move {
-            let url_file = img_url
-                .get()
-                .to_string()
-                .split("/")
-                .last()
-                .unwrap()
-                .to_string();
-            // let file_name = images.get()[*current_index.get()].1.filename.clone();
-            // let image_id = images.get()[*current_index.get()].1.id.clone();
-            // save_jpg(url_file, image_id,base_url_c.get().as_str()).await;
 
             let (_images_list,_images) = search(*user_id.get(),graphql_url_c.get().as_str(),query_value.get().as_str()).await;
             let mut _images_:Vec<(String,&Signal<Vec<(usize,Image)>>)> = Vec::new();
@@ -548,10 +521,10 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                                                     file_name.set(_image.filename);
                                                     img_url.set(_image.url);
                                                 })
-                                                i(class="bx bx-info-circle")
+                                                i(class="bx bx-info-circle",on:click=move |_|{current_index.set(index);is_zoomed.set(true)})
                                                 
                                     }
-                                    img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=aimage.url,on:click=move |_| handle_image_click(index))
+                                    img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=aimage.url)
                                     footer(){
                                         small(){
                                             i(class="bx bx-aperture",style="margin-right: 20px;"){(aimage.exif.aperture)}
@@ -568,25 +541,43 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 }
             )
         }
-
-        (if *is_zoomed.get() {
-                view! { cx,
-                    div(class="image-container") {
-                        img(src=images_list.get()[*current_index.get()].url,class="zoomed", on:click=move |_| is_zoomed.set(false))
-                        div(class="button-container-prev"){
-                            button(class="prev-button", on:click=handle_prev_click) { "" }
-                        }
-                        div(class="button-container-next"){
-                            button(class="next-button", on:click=handle_next_click) { "" }
+        
+        dialog(open=*is_zoomed.get())
+        {
+            article(style="width: 100%; max-width: 80%"){
+                header(){
+                    button(aria-label="Close",rel="prev",on:click=move |_| is_zoomed.set(false))
+                    strong(){(images_list.get()[*current_index.get()].filename)}
+                }
+            div(class="grid"){
+                article(){
+                    img(src = images_list.get()[*current_index.get()].url)
+                }
+                article(){
+                    div(){
+                        p(){"光圈：" (images_list.get()[*current_index.get()].exif.aperture)}
+                        hr()
+                        p(){"焦距：" (images_list.get()[*current_index.get()].exif.focal_len) "mm"}
+                        hr()
+                        p(){"ISO：" (images_list.get()[*current_index.get()].exif.iso)}
+                        hr()
+                        p(){"快门速度：1/" ((1.0/images_list.get()[*current_index.get()].exif.shutter).round()) "s"}
+                        hr()
+                        p(){"拍摄时间：" (images_list.get()[*current_index.get()].exif.shooting_date)}
+                    }
+                    footer(style="text-align:center;"){
+                        small(){
+                            a(style="margin-right: 20px;",download=true,href = images_list.get()[*current_index.get()].url){i(class="bx bxs-download") "转换后下载"}
+                            a(style="margin-right: 20px;",download = true,href = images_list.get()[*current_index.get()].originalUrl){i(class="bx bxs-download"){"源文件下载"}}
+                            // a(style="margin-right: 20px;",){i(class="bx bxs-download"){"添加相框下载"}}
                         }
                     }
                 }
-            }
-            else{
-                view!{cx,
 
-                }
-            })
+            }
+        }
+        }
+
         dialog(open=*is_edit.get()){
             article(style="width: 100%; max-width: 80%"){
                 header(){
