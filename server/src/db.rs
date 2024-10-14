@@ -45,6 +45,7 @@ pub fn create_tantivy_index() -> tantivy::Result<Index> {
 
     schema_builder.add_text_field("file_name", text_options);
     schema_builder.add_text_field("cache_url", TEXT | STORED);
+    schema_builder.add_text_field("original_url", TEXT | STORED);
     schema_builder.add_i64_field("image_id", INDEXED |STORED| FAST);
     schema_builder.add_i64_field("user_id", INDEXED |STORED| FAST);
     schema_builder.add_i64_field("focal_len", INDEXED |STORED| FAST);
@@ -102,6 +103,7 @@ pub fn sync_sqlite_to_tantivy(pool: &Pool, index: &Index) {
     let image_id = schema.get_field("image_id").unwrap();
     let user_id = schema.get_field("user_id").unwrap();
     let cache_url = schema.get_field("cache_url").unwrap();
+    let original_url = schema.get_field("original_url").unwrap();
     let file_name = schema.get_field("file_name").unwrap();
     let shooting_date = schema.get_field("shooting_date").unwrap();
 
@@ -130,6 +132,7 @@ pub fn sync_sqlite_to_tantivy(pool: &Pool, index: &Index) {
             _doc.add_i64(image_id, image.id.into());
             _doc.add_i64(user_id, image.user_id.into());
             _doc.add_text(cache_url, image.cached_url.clone());
+            _doc.add_text(original_url, image.original_url.clone());
     
             _doc.add_f64(aperture,_exif.aperture.into());
             _doc.add_f64(shutter,_exif.shutter.into());
