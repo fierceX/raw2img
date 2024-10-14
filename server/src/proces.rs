@@ -160,7 +160,7 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
         ))
     }).unwrap().into_iter().filter_map(Result::ok).collect();
     println!("{:?}",images);
-    let (lut_name,lut_path) = match conn.query_row("select lut_name,lut_path from users left join luts on users.lut_id = luts.id where id = :user_id;", named_params!{":user_id":&user_id}, |row| Ok((row.get(0).unwrap(),row.get(1).unwrap())),){
+    let (lut_name,lut_path) = match conn.query_row("select lut_name,storage_path || '/' || lut_name from users left join luts on users.lut_id = luts.id left join storages on luts.storage_id = storages.id where users.id = :user_id;", named_params!{":user_id":&user_id}, |row| Ok((row.get(0).unwrap(),row.get(1).unwrap())),){
         Ok((_lut_name,_lut_path)) => (_lut_name,_lut_path),
         Err(_) => ("".to_string(),"".to_string())
     };
