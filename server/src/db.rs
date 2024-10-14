@@ -68,7 +68,6 @@ pub fn create_tantivy_index() -> tantivy::Result<Index> {
     let index = if index_path.exists() {
         Index::open_in_dir(index_path)?
     } else {
-        println!("aaaa");
         std::fs::create_dir_all(index_path);
         let index = Index::create_in_dir(index_path, schema.clone())?;
         index

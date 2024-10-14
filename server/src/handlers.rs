@@ -234,7 +234,7 @@ async fn savejpg(
     parames: web::Json<(String, i32)>,
 ) -> HttpResponse {
     // if let Ok(Some(userid)) = session.get::<String>("userid") {
-    println!("{:?}", parames);
+    // println!("{:?}", parames);
     let _parames = parames.0;
     let _pool = pool.get_ref().to_owned();
     let db_conn = _pool.get().unwrap();
