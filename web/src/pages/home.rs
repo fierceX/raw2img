@@ -111,7 +111,7 @@ async fn getrawfiles(user_id:i32, url:&str) -> (Vec<Image>,Vec<(String, Vec<(usi
         else{
             Image{
                 id:x.id as i32,
-                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01".to_string()},
+                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01 00:00:00".to_string()},
                 filename: x.file_name.clone(),
                 url: x.cached_url.clone(),}
         }
@@ -169,7 +169,7 @@ async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, V
         else{
             Image{
                 id:x.id as i32,
-                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01".to_string()},
+                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01 00:00:00".to_string()},
                 filename: x.file_name.clone(),
                 url: x.cached_url.clone(),}
         }

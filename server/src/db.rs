@@ -88,7 +88,7 @@ pub fn create_tantivy_index() -> tantivy::Result<Index> {
 
 pub fn sync_sqlite_to_tantivy(pool: &Pool, index: &Index) {
     let conn = pool.get().unwrap();
-    let mut stmt = conn.prepare("select * from images_view where images.cache_id is null").unwrap();
+    let mut stmt = conn.prepare("select * from images_view;").unwrap();
     // let mut rows = stmt.query(params![])?;
 
     let images:Vec<Image> = stmt.query_map([],|row| {
