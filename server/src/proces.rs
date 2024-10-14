@@ -65,7 +65,7 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
             
             let _id:i32 = conn.query_row("select id from paths where path = :path and storage_id= :storage_id;", named_params!{":path":&path,":storage_id":&_storage_id}, |row| row.get(0)).unwrap();
             let now: DateTime<Utc> = Utc::now();
-            println!("{} {}",_id,path);
+            // println!("{} {}",_id,path);
             // 格式化时间
             let formatted_time = now.format("%Y-%m-%d %H:%M:%S").to_string();
             for (file_name,file_type,file_size) in file_names{
@@ -74,8 +74,6 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
                     "INSERT OR IGNORE INTO images (user_id, path_id, file_name,scan_time,shooting_time,file_size,mime_type) VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?6)",
                     (&user_id, &_id,&file_name,&formatted_time,&file_size,&file_type),
                 ).unwrap();
-                
-                println!("{}",file_name);
             }
             }
         }
@@ -88,7 +86,7 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
 
 pub fn raw2(parames:web::Json<Parameters>,pool:Pool) -> Option<String>{
     let db_conn = pool.get().unwrap();
-    println!("{:?}",parames);
+    // println!("{:?}",parames);
     let original_path:String = db_conn.query_row("\
         select \
         storage_original.storage_path || paths_original.path as original_path
@@ -159,10 +157,15 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
         Ok((row.get(0).unwrap(),row.get(1).unwrap(),row.get(2).unwrap(),row.get(3).unwrap(),row.get(4).unwrap()
         ))
     }).unwrap().into_iter().filter_map(Result::ok).collect();
-    println!("{:?}",images);
+    // println!("{:?}",images);
     let (lut_name,lut_path) = match conn.query_row("select lut_name,storage_path || '/' || lut_name from users left join luts on users.lut_id = luts.id left join storages on luts.storage_id = storages.id where users.id = :user_id;", named_params!{":user_id":&user_id}, |row| Ok((row.get(0).unwrap(),row.get(1).unwrap())),){
         Ok((_lut_name,_lut_path)) => (_lut_name,_lut_path),
         Err(_) => ("".to_string(),"".to_string())
+    };
+
+    let (wb,half_size,quality) = match conn.query_row("select wb,half_size,quality where users.id = :user_id;", named_params!{":user_id":&user_id}, |row| Ok((row.get(0).unwrap(),row.get(1).unwrap(),row.get(2).unwrap())),){
+        Ok((_wb,_half_size,_quality)) => (_wb,_half_size,_quality),
+        Err(_) => (true,true,90)
     };
 
     let (storage_id,storage_path):(i32,String) = conn.query_row("select id,storage_path from storages where user_id = :user_id and storage_usage = 'cache';", named_params!{":user_id":&user_id}, |row| Ok((row.get(0).unwrap(),row.get(1).unwrap())),).unwrap();
@@ -184,11 +187,10 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
     ).unwrap();
     
     let cache_id:i32 = conn.query_row("select id from paths where path = :path and storage_id= :storage_id;", named_params!{":path":&_cache_path,":storage_id":&storage_id}, |row| row.get(0)).unwrap();
-    println!("{:?}",cache_id);
+    // println!("{:?}",cache_id);
     for (_id,_file_name,_type,_scan_time,_path) in images{
-        println!("{}",_path);
+        // println!("{}",_path);
         if let Ok(_) = fs::metadata(_path.clone()) {
-            println!("aaaaa");
             let mut hasher = Blake2bVar::new(10).unwrap();
 
             let mut buf = [0u8; 10];
@@ -207,16 +209,16 @@ pub fn raw2img(user_id:i32,pool:Arc<Mutex<Pool>>){
             
             let out_file_name = format!("{}.jpg",base16ct::lower::encode_string(&buf));
             let out_file_path = format!("{}/{}",cache_path,out_file_name);
-            println!("{} {}",out_file_name,out_file_path);
+            // println!("{} {}",out_file_name,out_file_path);
             if let Ok(_exif) = raw_process(
                 _path,
                 out_file_path,
                 lut_path.clone(),
-                true,
-                true,
+                wb,
+                half_size,
                 -3.0,
                 -3,
-                90,
+                quality,
                 false,
                 ""
             ){

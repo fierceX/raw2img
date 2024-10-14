@@ -94,7 +94,7 @@ impl User {
 
         let top_docs = searcher.search(&queryq, &TopDocs::with_limit(1000)).unwrap();
 
-        println!("{:?}",top_docs);
+        // println!("{:?}",top_docs);
 
         let images = top_docs.iter().map(|(_s,_d)|{
             let retrieved_doc: TantivyDocument = searcher.doc(*_d).unwrap();
