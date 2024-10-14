@@ -63,7 +63,7 @@ impl User {
     fn images(&self, context: &Context) -> Vec<Image> {
         let conn = context.db_pool.get().unwrap();
 
-        let mut res = conn.prepare("select * from images_view where user_id = :user_id;").unwrap();
+        let mut res = conn.prepare("select * from images_view where user_id = :user_id and images.cache_id is null;").unwrap();
         res.query_map(&[(":user_id",&self.id)],|row| {
             row2img(row)
         }).unwrap().into_iter().filter_map(Result::ok).collect()
