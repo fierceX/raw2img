@@ -88,7 +88,7 @@ pub fn create_tantivy_index() -> tantivy::Result<Index> {
 
 pub fn sync_sqlite_to_tantivy(pool: &Pool, index: &Index) {
     let conn = pool.get().unwrap();
-    let mut stmt = conn.prepare("select * from images_view").unwrap();
+    let mut stmt = conn.prepare("select * from images_view where images.cache_id is null").unwrap();
     // let mut rows = stmt.query(params![])?;
 
     let images:Vec<Image> = stmt.query_map([],|row| {
@@ -124,26 +124,27 @@ pub fn sync_sqlite_to_tantivy(pool: &Pool, index: &Index) {
         }
         let mut _doc = TantivyDocument::default();
 
-        let _exif:Myexif = serde_json::from_str(&image.exif).unwrap();
-
-        _doc.add_text(file_name,image.file_name.clone());
+        if let Ok(exif) = serde_json::from_str(&image.exif){
+            let _exif:Myexif = exif;
+            _doc.add_text(file_name,image.file_name.clone());
         
-        _doc.add_i64(image_id, image.id.into());
-        _doc.add_i64(user_id, image.user_id.into());
-        _doc.add_text(cache_url, image.cached_url.clone());
-
-        _doc.add_f64(aperture,_exif.aperture.into());
-        _doc.add_f64(shutter,_exif.shutter.into());
-        _doc.add_i64(focal_len,_exif.focal_len.into());
-        _doc.add_f64(iso,_exif.iso.into());
-       
-        let naive_date = chrono::NaiveDateTime::parse_from_str(&image.shooting_time, "%Y-%m-%d %H:%M:%S").unwrap();
-        let date_time = Local.from_local_datetime(&naive_date).unwrap();
-
-        let dd = DateTime::from_timestamp_secs(date_time.timestamp());
-        _doc.add_date(shooting_date,dd);
-
-        index_writer.add_document(_doc);
+            _doc.add_i64(image_id, image.id.into());
+            _doc.add_i64(user_id, image.user_id.into());
+            _doc.add_text(cache_url, image.cached_url.clone());
+    
+            _doc.add_f64(aperture,_exif.aperture.into());
+            _doc.add_f64(shutter,_exif.shutter.into());
+            _doc.add_i64(focal_len,_exif.focal_len.into());
+            _doc.add_f64(iso,_exif.iso.into());
+           
+            let naive_date = chrono::NaiveDateTime::parse_from_str(&image.shooting_time, "%Y-%m-%d %H:%M:%S").unwrap();
+            let date_time = Local.from_local_datetime(&naive_date).unwrap();
+    
+            let dd = DateTime::from_timestamp_secs(date_time.timestamp());
+            _doc.add_date(shooting_date,dd);
+    
+            index_writer.add_document(_doc);
+        }
     }
     
     index_writer.commit().unwrap();
