@@ -47,9 +47,8 @@ pub fn scan_directory(dir: &Path, filter_list: &[&str],base_dir:&Path) -> HashMa
     result
 }
 
-pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>,index:Arc<Mutex<Index>>){
-    let _pool = pool.lock().unwrap();
-    let conn = _pool.get().unwrap();
+pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>){
+    let conn = pool.lock().unwrap().get().unwrap();
 
     let mut res = conn.prepare("select id,storage_name,storage_path from storages where user_id = :user_id and storage_type = :storage_type and storage_usage = 'source';").unwrap();
     let storages:Vec<(i32,String,String)> = res.query_map(named_params!{":user_id":&user_id,":storage_type":"local"},|row| {
@@ -81,10 +80,10 @@ pub fn scan_files(user_id:i32,pool:Arc<Mutex<Pool>>,index:Arc<Mutex<Index>>){
             }
         }
     }
-    raw2img(user_id,pool.clone());
-    let _index = index.lock().unwrap();
-    // let _pool = pool.lock().unwrap().get();
-    sync_sqlite_to_tantivy(&_pool, &_index);
+    raw2img(user_id,pool);
+    // let _index = index.lock().unwrap();
+    // let _pool = pool.lock().unwrap().get().unwrap();
+    
 }
 
 pub fn raw2(parames:web::Json<Parameters>,pool:Pool) -> Option<String>{

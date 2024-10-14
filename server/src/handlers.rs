@@ -176,9 +176,12 @@ async fn auth(session: Session, pool: web::Data<Pool>, form: web::Form<FormData2
 #[route("/scan", method = "POST")]
 async fn scans(pool: web::Data<Pool>,index: web::Data<Index>, user_id: web::Json<i32>) -> HttpResponse {
     let _pool = Arc::new(Mutex::new(pool.get_ref().to_owned()));
-    let _index = Arc::new(Mutex::new(index.get_ref().to_owned()));
+    let _index = index.get_ref().to_owned();
     let _handle = thread::spawn(move || {
-        scan_files(*user_id, _pool,_index);
+        let _pool1 = _pool.clone();
+        scan_files(*user_id, _pool1);
+        let _pool2 = _pool.lock().unwrap();
+        sync_sqlite_to_tantivy(&_pool2, &_index);
     });
     HttpResponse::Ok().body("")
 }
