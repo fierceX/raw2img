@@ -13,7 +13,7 @@ use jwt_simple::{
     claims::{Claims, NoCustomClaims},
     prelude::{Duration, HS256Key, MACLike},
 };
-use raw::raw_process;
+use raw::{raw_process,add_frame};
 use rusqlite::named_params;
 use serde::{Deserialize, Serialize};
 use tantivy::Index;
@@ -33,6 +33,12 @@ use crate::{
         storage,
     },
 };
+
+
+#[derive(Deserialize,Debug)]
+struct PhoframeQuery {
+    phoframe: Option<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct FormData {
@@ -189,10 +195,13 @@ async fn scans(pool: web::Data<Pool>,index: web::Data<Index>, user_id: web::Json
 #[route("/img/{path:.*}", method = "GET")]
 async fn get_image(
     session: Session,
+    info: web::Query<PhoframeQuery>,
     pool: web::Data<Pool>,
     url: web::Path<String>,
+    
 ) -> Result<impl Responder, Error> {
     let (storage_name, _path) = url.split_once('/').unwrap_or(("", ""));
+
     let db_conn = pool.get_ref().to_owned();
 
     let storage_path: String = db_conn
@@ -206,9 +215,28 @@ async fn get_image(
         .unwrap();
 
     let path = format!("{}/{}", storage_path, _path);
-    // log::info!("{}", path);
+    // log::info!("{:?}",_paths);
     if Path::new(&path).exists() {
-        Ok(NamedFile::open(path).unwrap())
+        
+        match &info.phoframe {
+            Some(_text) =>{
+                let text = _text.replace("+", " ").replace("|", "/");
+                let _new_name = Path::new(_path).file_stem().and_then(|os_str| os_str.to_str()).unwrap();
+                let new_path = format!("./tmp/{0}.jpg",_new_name);
+
+                log::info!("{:?}  {:?}",text,new_path);
+                add_frame(path,new_path.clone(),text,"LXGWWenKaiMono-Regular.ttf".to_string());
+                if Path::new(&new_path).exists() {
+                    Ok(NamedFile::open(new_path).unwrap())
+                }
+                else{
+                    Err(actix_web::error::ErrorNotFound("Image not found"))
+                }
+            }
+            None =>{
+                Ok(NamedFile::open(path).unwrap())
+            }
+        }
     } else {
         Err(actix_web::error::ErrorNotFound("Image not found"))
     }

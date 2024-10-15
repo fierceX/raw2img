@@ -6,7 +6,8 @@ use std::{
     path::Path,
 };
 
-use image::{DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder};
+use image::{DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder, ImageReader};
+use img_frame::get_frame;
 use img_parts::{jpeg::Jpeg, Bytes, ImageEXIF};
 use libraw_rs_vendor::{
     libraw_close, libraw_data_t, libraw_dcraw_make_mem_image, libraw_dcraw_process, libraw_init,
@@ -80,8 +81,8 @@ fn exposure_shift(data: &[u8]) -> f32 {
 
     let mm = m / j;
     if mm < 120 && mm > 60 {
-        v = f32::powf(2.0, 110.0 / mm as f32);
-        if 110 < mm {
+        v = f32::powf(2.0, 140.0 / mm as f32);
+        if 140 < mm {
             v = -v;
         }
     }
@@ -96,6 +97,14 @@ fn generate_gamma_lut(lut: &mut [u8], gamma: f32) {
 }
 
 const TBLN: usize = 255;
+
+pub fn add_frame(old_path:String,new_path:String,text: String,font_path:String){
+    // DynamicImage::o
+    let old_img = ImageReader::open(old_path).unwrap().decode().unwrap();
+    let new_img = get_frame(old_img,&text,false,true,None,&font_path);
+    let aaa = new_img.save(new_path);
+    println!("{:?}",aaa);
+}
 
 fn generate_linear_lut(lut: &mut [u8], shift: f32, smooth: f32) {
     let x1: f32;
