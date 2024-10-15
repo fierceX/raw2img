@@ -29,10 +29,14 @@ struct Myexif {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct Image {
     id:i32,
-    exif:Myexif,
     filename: String,
     url: String,
-    originalUrl:String,
+    original_url:String,
+    iso: f32,
+    aperture: f32,
+    shutter: String,
+    focal_len: i32,
+    shooting_date:String,
 }
 
 
@@ -100,32 +104,48 @@ async fn getrawfiles(user_id:i32, url:&str) -> (Vec<Image>,Vec<(String, Vec<(usi
     let response_data: images_query::ResponseData = response_body.data.expect("missing response data");
     let mut image_list: Vec<Image> = response_data.user.images.iter().map(|x| {
         
-        if let Ok(_exif) = serde_json::from_str(&x.exif) {
+        if let Ok(_exif_) = serde_json::from_str(&x.exif) {
+        let _exif:Myexif = _exif_;
         // let xx = format!("http://127.0.0.1:8081{0}",x.cached_url);
-            Image{
+        let shutter = if _exif.shutter > 1.0 {
+            _exif.shutter.round().to_string()
+        }
+        else{
+            format!("1/{0}",(1.0/_exif.shutter).round())
+        };
+        Image{
             id:x.id as i32,
-            exif:_exif,
             filename: x.file_name.clone(),
             url: x.cached_url.clone(),
-            originalUrl:x.original_url.clone()}
+            original_url:x.original_url.clone(),
+            iso: _exif.iso,
+            aperture:_exif.aperture,
+            shutter,
+            focal_len:_exif.focal_len,
+            shooting_date:_exif.shooting_date,
+            }
         }
         else{
             Image{
                 id:x.id as i32,
-                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01 00:00:00".to_string()},
                 filename: x.file_name.clone(),
                 url: x.cached_url.clone(),
-                originalUrl:x.original_url.clone()}
+                original_url:x.original_url.clone(),
+                iso: 0.0,
+                aperture:0.0,
+                shutter:"".to_string(),
+                focal_len:0,
+                shooting_date:"1990-01-01 00:00:00".to_string(),
         }
 
-    }).collect();
+    }}).collect();
     // image_list.sort_by_key(|p|p.1.exif.shooting_date);
-    image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
+    image_list.sort_by(|a,b|b.shooting_date.cmp(&a.shooting_date));
     let mut images:Vec<(String,Vec<(usize,Image)>)> = image_list.iter().enumerate().map(|(i,x)|{
         (i,x.clone())
     }).into_iter()
     .fold(HashMap::new(), |mut map, image| {
-        let date = image.1.exif.shooting_date.split_once(" ").unwrap().0.to_string();
+        let date = image.1.shooting_date.split_once(" ").unwrap().0.to_string();
         map.entry(date).or_insert_with(Vec::new).push(image);
         map
     }).into_iter()
@@ -159,27 +179,43 @@ async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, V
     let response_data: images_search::ResponseData = response_body.data.expect("missing response data");
     let mut image_list: Vec<Image> = response_data.user.search.iter().map(|x| {
         
-        if let Ok(_exif) = serde_json::from_str(&x.exif) {
-
-            Image{
-            id:x.id as i32,
-            exif:_exif,
-            filename: x.file_name.clone(),
-            url: x.cached_url.clone(),
-            originalUrl:x.original_url.clone()}
-        }
-        else{
+        if let Ok(_exif_) = serde_json::from_str(&x.exif) {
+            let _exif:Myexif = _exif_;
+            // let xx = format!("http://127.0.0.1:8081{0}",x.cached_url);
+            let shutter = if _exif.shutter > 1.0 {
+                _exif.shutter.round().to_string()
+            }
+            else{
+                format!("1/{0}",(1.0/_exif.shutter).round())
+            };
             Image{
                 id:x.id as i32,
-                exif:Myexif{iso:0.0,aperture:0.0,shutter:0.0,focal_len:0,shooting_date:"1900-01-01 00:00:00".to_string()},
                 filename: x.file_name.clone(),
                 url: x.cached_url.clone(),
-                originalUrl:x.original_url.clone()}
-        }
-
-    }).collect();
+                original_url:x.original_url.clone(),
+                iso: _exif.iso,
+                aperture:_exif.aperture,
+                shutter,
+                focal_len:_exif.focal_len,
+                shooting_date:_exif.shooting_date,
+                }
+            }
+            else{
+                Image{
+                    id:x.id as i32,
+                    filename: x.file_name.clone(),
+                    url: x.cached_url.clone(),
+                    original_url:x.original_url.clone(),
+                    iso: 0.0,
+                    aperture:0.0,
+                    shutter:"".to_string(),
+                    focal_len:0,
+                    shooting_date:"1990-01-01 00:00:00".to_string(),
+            }
+    
+        }}).collect();
     // image_list.sort_by_key(|p|p.1.exif.shooting_date);
-    image_list.sort_by(|a,b|b.exif.shooting_date.cmp(&a.exif.shooting_date));
+    image_list.sort_by(|a,b|b.shooting_date.cmp(&a.shooting_date));
     // image_list.iter().enumerate().map(|(i,x)|{
     //     (i,x.clone())
     // }).collect()
@@ -187,7 +223,7 @@ async fn search(user_id:i32, url:&str, query:&str) -> (Vec<Image>,Vec<(String, V
         (i,x.clone())
     }).into_iter()
     .fold(HashMap::new(), |mut map, image| {
-        let date = image.1.exif.shooting_date.split_once(" ").unwrap().0.to_string();
+        let date = image.1.shooting_date.split_once(" ").unwrap().0.to_string();
         map.entry(date).or_insert_with(Vec::new).push(image);
         map
     }).into_iter()
@@ -443,6 +479,10 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         selected_items.set(vec![]);
     };
 
+    let gen_exif_string = |_image:&Image|{
+        format!("{0}mm+f|{1}+{2}s+ISO{3}",_image.focal_len,_image.aperture,_image.shutter,_image.iso)
+    };
+
     
     view! {cx,
 
@@ -527,10 +567,10 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                                     img(style="display: block;margin-left: auto;margin-right: auto;",loading="lazy",src=aimage.url)
                                     footer(){
                                         small(){
-                                            i(class="bx bx-aperture",style="margin-right: 20px;"){(aimage.exif.aperture)}
-                                            i(class="bx bx-time-five",style="margin-right: 20px;"){"1/"((1.0/aimage.exif.shutter).round())}
-                                            i(class="bx bx-album",style="margin-right: 20px;"){(aimage.exif.focal_len)}
-                                            i(class="bx bx-adjust"){(aimage.exif.iso)}
+                                            i(class="bx bx-aperture",style="margin-right: 20px;"){(aimage.aperture)}
+                                            i(class="bx bx-time-five",style="margin-right: 20px;"){(aimage.shutter)}
+                                            i(class="bx bx-album",style="margin-right: 20px;"){(aimage.focal_len)}
+                                            i(class="bx bx-adjust"){(aimage.iso)}
                                             }
                                     }
                                 }
@@ -555,21 +595,21 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
                 }
                 article(){
                     div(){
-                        p(){"光圈：" (images_list.get()[*current_index.get()].exif.aperture)}
+                        p(){"光圈：" (images_list.get()[*current_index.get()].aperture)}
                         hr()
-                        p(){"焦距：" (images_list.get()[*current_index.get()].exif.focal_len) "mm"}
+                        p(){"焦距：" (images_list.get()[*current_index.get()].focal_len) "mm"}
                         hr()
-                        p(){"ISO：" (images_list.get()[*current_index.get()].exif.iso)}
+                        p(){"ISO：" (images_list.get()[*current_index.get()].iso)}
                         hr()
-                        p(){"快门速度：1/" ((1.0/images_list.get()[*current_index.get()].exif.shutter).round()) "s"}
+                        p(){"快门速度：" (images_list.get()[*current_index.get()].shutter) "s"}
                         hr()
-                        p(){"拍摄时间：" (images_list.get()[*current_index.get()].exif.shooting_date)}
+                        p(){"拍摄时间：" (images_list.get()[*current_index.get()].shooting_date)}
                     }
                     footer(style="text-align:center;"){
                         small(){
-                            a(style="margin-right: 20px;",download=true,href = images_list.get()[*current_index.get()].url){i(class="bx bxs-download") "转换后下载"}
-                            a(style="margin-right: 20px;",download = true,href = images_list.get()[*current_index.get()].originalUrl){i(class="bx bxs-download"){"源文件下载"}}
-                            // a(style="margin-right: 20px;",){i(class="bx bxs-download"){"添加相框下载"}}
+                            a(rel="external",style="margin-right: 20px;",download=true,href = images_list.get()[*current_index.get()].url){i(class="bx bxs-download") "转换后下载"}
+                            a(rel="external",style="margin-right: 20px;",download = true,href = images_list.get()[*current_index.get()].original_url){i(class="bx bxs-download"){"源文件下载"}}
+                            a(rel="external",style="margin-right: 20px;",download = true,href = format!("{0}?phoframe={1}",images_list.get()[*current_index.get()].url,gen_exif_string(&images_list.get()[*current_index.get()]))){i(class="bx bxs-download"){"添加相框下载"}}
                         }
                     }
                 }

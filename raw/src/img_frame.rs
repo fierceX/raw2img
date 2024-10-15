@@ -1,4 +1,4 @@
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
+use image::{DynamicImage, GenericImageView, ImageBuffer, ImageReader, Rgb, Rgba};
 use imageproc::drawing::{draw_filled_circle_mut, draw_filled_rect_mut};
 use imageproc::rect::Rect;
 use std::fs;
@@ -99,19 +99,28 @@ fn measure_text(font: &FontArc, scale: PxScale, text: &str) -> TextMetrics {
 pub fn gen_frame_img(main_img:Vec<u8>,width:u32,height:u32,text_list: &str,solid_bg:bool,shadow_show:bool,shadow:Option<f32>,font_path:&str) -> (Vec<u8>,u32,u32){
 
     let main_img = DynamicImage::ImageRgb8(ImageBuffer::from_raw(width,height,main_img).unwrap());
-    main_img.save("aaabb.jpg");
+    // main_img.save("aaabb.jpg");
 
-    let (bg_h,bg_w) = calc_bg_img_size(main_img.height(), main_img.width(), main_img.height(), main_img.width(), 100.0, Some(main_img.height()));
+    let bg_img = get_frame(main_img,text_list,solid_bg,shadow_show,shadow,font_path);
+
+    // let out = 
+    (bg_img.to_vec(),bg_img.width(),bg_img.height())
+
+}
+
+
+pub fn get_frame(img:DynamicImage,text_list:&str,solid_bg:bool,shadow_show:bool,shadow:Option<f32>,font_path:&str) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+    let (bg_h,bg_w) = calc_bg_img_size(img.height(), img.width(), img.height(), img.width(), 100.0, Some(img.height()));
 
     // println!("{} {}",bg_h,bg_w);
 
     
 
-    let (content_h,m_top) = calc_content_height(bg_h,main_img.height(),Some(5.0),0,true,Some(50));
+    let (content_h,m_top) = calc_content_height(bg_h,img.height(),Some(5.0),0,true,Some(50));
 
     let mut _content_offset_y = m_top;
 
-    let (bg_h,bg_w) = calc_bg_img_size(main_img.height(), main_img.width(), main_img.height(), main_img.width(), 100.0, Some(content_h.try_into().unwrap()));
+    let (bg_h,bg_w) = calc_bg_img_size(img.height(), img.width(), img.height(), img.width(), 100.0, Some(content_h.try_into().unwrap()));
 
     // println!("{} {}",bg_h,bg_w);
 
@@ -131,15 +140,15 @@ pub fn gen_frame_img(main_img:Vec<u8>,width:u32,height:u32,text_list: &str,solid
 
     
 
-    let _bg_img = main_img.resize(bg_w, bg_h, FilterType::Nearest).to_rgba8();
+    let _bg_img = img.resize(bg_w, bg_h, FilterType::Nearest).to_rgba8();
     let mut bg_img = gaussian_blur_f32(&_bg_img, 200.0);
 
-    let content_offset_x = (bg_w - main_img.width()) /2;
+    let content_offset_x = (bg_w - img.width()) /2;
     _content_offset_y += ((bg_h - content_h as u32) /2) as i32;
     let content_offset_y = _content_offset_y as u32;
 
     let text_offset_x = (bg_w - text_img.width()) /2;
-    let text_offset_y =  content_offset_y + main_img.height() + (bg_h - content_offset_y - main_img.height()) /2 - (text_img.height() /2 );
+    let text_offset_y =  content_offset_y + img.height() + (bg_h - content_offset_y - img.height()) /2 - (text_img.height() /2 );
 
     // println!("{} {}",text_offset_x,text_offset_y);
 
@@ -183,20 +192,19 @@ pub fn gen_frame_img(main_img:Vec<u8>,width:u32,height:u32,text_list: &str,solid
     let shadow_offset = 10; // 假设阴影偏移量为5
 
     let mut shadow = ImageBuffer::new(bg_w,bg_h);
-    draw_filled_rect_mut(&mut shadow, Rect::at((content_offset_x - shadow_offset) as i32,(content_offset_y - shadow_offset) as i32).of_size(main_img.width() + (2* shadow_offset) as u32,main_img.height() + (2* shadow_offset)), Rgba([0,0,0,128]));
+    draw_filled_rect_mut(&mut shadow, Rect::at((content_offset_x - shadow_offset) as i32,(content_offset_y - shadow_offset) as i32).of_size(img.width() + (2* shadow_offset) as u32,img.height() + (2* shadow_offset)), Rgba([0,0,0,128]));
     let shadowa = gaussian_blur_f32(&shadow, shadow_blur);
 
     image::imageops::overlay(&mut bg_img, &shadowa, 0,0);
 
     // 绘制主体图片到画布
-    image::imageops::overlay(&mut bg_img, &main_img, content_offset_x as i64, content_offset_y as i64);
+    image::imageops::overlay(&mut bg_img, &img, content_offset_x as i64, content_offset_y as i64);
 
     image::imageops::overlay(&mut bg_img, &text_img, text_offset_x as i64, text_offset_y as i64);
-
-    let out = DynamicImage::ImageRgba8(bg_img).to_rgb8();
-    (out.to_vec(),out.width(),out.height())
-
+    // bg_img
+    DynamicImage::ImageRgba8(bg_img).to_rgb8()
 }
+
 
 fn calc_average_brightness(img: &ImageBuffer<Rgba<u8>, Vec<u8>>) -> u8 {
     let mut sum = 0;
