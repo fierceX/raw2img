@@ -10,8 +10,7 @@ use image::{DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder, ImageRea
 use img_frame::get_frame;
 use img_parts::{jpeg::Jpeg, Bytes, ImageEXIF};
 use libraw_rs_vendor::{
-    libraw_close, libraw_data_t, libraw_dcraw_make_mem_image, libraw_dcraw_process, libraw_init,
-    libraw_open_file, libraw_processed_image_t, libraw_unpack, LibRaw_errors_LIBRAW_SUCCESS,
+    libraw_close, libraw_data_t, libraw_dcraw_clear_mem, libraw_dcraw_make_mem_image, libraw_dcraw_process, libraw_init, libraw_open_file, libraw_processed_image_t, libraw_unpack, LibRaw_errors_LIBRAW_SUCCESS
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -202,6 +201,7 @@ fn read_raw(input: &str, wb: bool, half_size: bool, exp_shift: f32, threshold: i
             let _rawdata = std::slice::from_raw_parts(raw_data, raw_size as usize);
             let v = exposure_shift(_rawdata);
             (*(libraw_data)).params.exp_shift = v;
+            libraw_dcraw_clear_mem(img);
         }
         (*(libraw_data)).params.half_size = half_size as i32;
         libraw_dcraw_process(libraw_data);
@@ -230,6 +230,7 @@ fn read_raw(input: &str, wb: bool, half_size: bool, exp_shift: f32, threshold: i
             shooting_date:datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
         };
         libraw_close(libraw_data);
+        libraw_dcraw_clear_mem(img);
         rawdata
     }
 }
