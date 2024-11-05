@@ -223,15 +223,17 @@ async fn get_image(
                 let text = _text.replace("+", " ").replace("|", "/");
                 let _new_name = Path::new(_path).file_stem().and_then(|os_str| os_str.to_str()).unwrap();
                 let new_path = format!("./tmp/{0}.jpg",_new_name);
-
                 log::info!("{:?}  {:?}",text,new_path);
-                add_frame(path,new_path.clone(),text,"LXGWWenKaiMono-Regular.ttf".to_string());
+                let _handle = thread::spawn(move || {
+                    add_frame(path,new_path.clone(),text,"LXGWWenKaiMono-Regular.ttf".to_string());
+                });
+                
                 if Path::new(&new_path).exists() {
                     Ok(NamedFile::open(new_path).unwrap())
                 }
                 else{
                     Err(actix_web::error::ErrorNotFound("Image not found"))
-                }
+                }  
             }
             None =>{
                 Ok(NamedFile::open(path).unwrap())
