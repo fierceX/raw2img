@@ -224,8 +224,9 @@ async fn get_image(
                 let _new_name = Path::new(_path).file_stem().and_then(|os_str| os_str.to_str()).unwrap();
                 let new_path = format!("./tmp/{0}.jpg",_new_name);
                 log::info!("{:?}  {:?}",text,new_path);
+                let new_path_1 = new_path.clone();
                 let _handle = thread::spawn(move || {
-                    add_frame(path,new_path.clone(),text,"LXGWWenKaiMono-Regular.ttf".to_string());
+                    add_frame(path,new_path_1,text,"LXGWWenKaiMono-Regular.ttf".to_string());
                 });
                 
                 if Path::new(&new_path).exists() {
