@@ -1,5 +1,5 @@
 [package]
-name = "server"
+name = "raw2img"
 version = "0.1.0"
 edition = "2021"
 
@@ -38,6 +38,9 @@ r2d2_sqlite = "0.25.0"
 r2d2 = "0.8.10"
 rusqlite = "0.32.1"
 tantivy = "0.22.0"
+
+clap = {version = "4.5.13",features=["default","derive"]}
+lazy_static = "1.5.0"
 
 [build-dependencies]
 static-files = "0.2.1"

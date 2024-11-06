@@ -18,13 +18,13 @@ use crate::schemas::image::Image;
 
 pub type Pool = r2d2::Pool<SqliteConnectionManager>;
 
-pub fn get_db_pool() -> Pool {
-    let manager = SqliteConnectionManager::file("db.db");
+pub fn get_db_pool(database:&str) -> Pool {
+    let manager = SqliteConnectionManager::file(database);
     r2d2::Pool::new(manager).unwrap()
 }
 
 
-pub fn create_tantivy_index() -> tantivy::Result<Index> {
+pub fn create_tantivy_index(index_path:&str) -> tantivy::Result<Index> {
 
     let mut schema_builder = Schema::builder();
 
@@ -64,7 +64,7 @@ pub fn create_tantivy_index() -> tantivy::Result<Index> {
     let schema = schema_builder.build();
 
 
-    let index_path = Path::new("tantivy_index");
+    let index_path = Path::new(index_path);
 
     let index = if index_path.exists() {
         Index::open_in_dir(index_path)?
