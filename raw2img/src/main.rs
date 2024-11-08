@@ -57,6 +57,10 @@ struct ServerArgs {
     /// 索引路径
     #[arg(short, long, default_value = "tantivy_index")]
     index: String,
+
+    /// 边框内容字体，提供下载转换后添加边框中的字体
+    #[arg(short, long ,default_value = "")]
+    font_file: String,
 }
 
 #[derive(Args)]
@@ -125,6 +129,7 @@ async fn main() -> std::io::Result<()> {
                 let port = sub_matches.get_one::<i32>("port").unwrap();
                 let database = sub_matches.get_one::<String>("database").unwrap();
                 let index_path = sub_matches.get_one::<String>("index").unwrap();
+                let font_file = sub_matches.get_one::<String>("font_file").unwrap().to_string();
                 let bindaddr = format!("{}:{}",bind,port);
 
                 env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -144,6 +149,7 @@ async fn main() -> std::io::Result<()> {
                         
                         .app_data(Data::new(pool.clone()))
                         .app_data(Data::new(index.clone()))
+                        .app_data(Data::new(font_file.clone()))
                         .configure(register)
                         .wrap(Cors::permissive())
                         .service(Files::new("/tmp", "./tmp"))

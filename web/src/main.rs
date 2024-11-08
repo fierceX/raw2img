@@ -7,6 +7,8 @@ use sycamore_router::{navigate, HistoryIntegration, Route, Router, RouterProps};
 
 use graphql_client::{reqwest::post_graphql, GraphQLQuery};
 
+use console_error_panic_hook;
+
 mod pages;
 
 use pages::{home, login, setting};
@@ -136,6 +138,7 @@ async fn App<G: Html>(cx: Scope<'_>) -> View<G> {
 
 
 fn main() {
+    // console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Debug).unwrap();
     sycamore::render(|cx| view! { cx, App {} });
 }

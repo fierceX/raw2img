@@ -304,7 +304,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         _x.set(i.1.clone());
         _images_.push((i.0.clone(),_x));
     }
-
+    
     images.set(_images_);
     images_list.set(_images_list);
 
@@ -479,8 +479,12 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         selected_items.set(vec![]);
     };
 
-    let gen_exif_string = |_image:&Image|{
-        format!("{0}mm+f|{1}+{2}s+ISO{3}",_image.focal_len,_image.aperture,_image.shutter,_image.iso)
+    let gen_exif_string = |_image:Option<&Image>|{
+        match _image{
+            Some(_image_) => format!("{0}mm+f|{1}+{2}s+ISO{3}",_image_.focal_len,_image_.aperture,_image_.shutter,_image_.iso),
+            None => "".to_string()
+        }
+        
     };
 
     
@@ -587,29 +591,29 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
             article(style="width: 100%; max-width: 80%"){
                 header(){
                     button(aria-label="Close",rel="prev",on:click=move |_| is_zoomed.set(false))
-                    strong(){(images_list.get()[*current_index.get()].filename)}
+                    strong(){(images_list.get().get(*current_index.get()).map(|p| p.filename.clone()).unwrap_or("".to_string()))}
                 }
             div(class="grid"){
                 article(){
-                    img(src = images_list.get()[*current_index.get()].url)
+                    img(src = images_list.get().get(*current_index.get()).map(|p|p.url.clone()).unwrap_or("".to_string()))
                 }
                 article(){
                     div(){
-                        p(){"光圈：" (images_list.get()[*current_index.get()].aperture)}
+                        p(){"光圈：" (images_list.get().get(*current_index.get()).map(|p|p.aperture).unwrap_or(0.0))}
                         hr()
-                        p(){"焦距：" (images_list.get()[*current_index.get()].focal_len) "mm"}
+                        p(){"焦距：" (images_list.get().get(*current_index.get()).map(|p|p.focal_len).unwrap_or(0)) "mm"}
                         hr()
-                        p(){"ISO：" (images_list.get()[*current_index.get()].iso)}
+                        p(){"ISO：" (images_list.get().get(*current_index.get()).map(|p|p.iso).unwrap_or(0.0))}
                         hr()
-                        p(){"快门速度：" (images_list.get()[*current_index.get()].shutter) "s"}
+                        p(){"快门速度：" (images_list.get().get(*current_index.get()).map(|p|p.shutter.clone()).unwrap_or("".to_string())) "s"}
                         hr()
-                        p(){"拍摄时间：" (images_list.get()[*current_index.get()].shooting_date)}
+                        p(){"拍摄时间：" (images_list.get().get(*current_index.get()).map(|p|p.shooting_date.clone()).unwrap_or("".to_string()))}
                     }
                     footer(style="text-align:center;"){
                         small(){
-                            a(rel="external",style="margin-right: 20px;",download=true,href = images_list.get()[*current_index.get()].url){i(class="bx bxs-download") "转换后下载"}
-                            a(rel="external",style="margin-right: 20px;",download = true,href = images_list.get()[*current_index.get()].original_url){i(class="bx bxs-download"){"源文件下载"}}
-                            a(rel="external",style="margin-right: 20px;",download = true,href = format!("{0}?phoframe={1}",images_list.get()[*current_index.get()].url,gen_exif_string(&images_list.get()[*current_index.get()]))){i(class="bx bxs-download"){"添加相框下载"}}
+                            a(rel="external",style="margin-right: 20px;",download=true,href = images_list.get().get(*current_index.get()).map(|p|p.url.clone()).unwrap_or("".to_string())){i(class="bx bxs-download") "转换后下载"}
+                            a(rel="external",style="margin-right: 20px;",download = true,href = images_list.get().get(*current_index.get()).map(|p|p.original_url.clone()).unwrap_or("".to_string())){i(class="bx bxs-download"){"源文件下载"}}
+                            a(rel="external",style="margin-right: 20px;",download = true,href = format!("{0}?phoframe={1}",images_list.get().get(*current_index.get()).map(|p|p.url.clone()).unwrap_or("".to_string()),gen_exif_string(images_list.get().get(*current_index.get())))){i(class="bx bxs-download"){"添加相框下载"}}
                         }
                     }
                 }
