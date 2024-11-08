@@ -197,12 +197,14 @@ async fn get_image(
     session: Session,
     info: web::Query<PhoframeQuery>,
     pool: web::Data<Pool>,
+    font_file: web::Data<String>,
     url: web::Path<String>,
     
 ) -> Result<impl Responder, Error> {
     let (storage_name, _path) = url.split_once('/').unwrap_or(("", ""));
 
     let db_conn = pool.get_ref().to_owned();
+    let fontfile = font_file.get_ref().to_owned();
 
     let storage_path: String = db_conn
         .get()
@@ -226,7 +228,7 @@ async fn get_image(
                 log::info!("{:?}  {:?}",text,new_path);
                 let new_path_1 = new_path.clone();
                 let _handle = thread::spawn(move || {
-                    add_frame(path,new_path_1,text,"LXGWWenKaiMono-Regular.ttf".to_string());
+                    add_frame(path,new_path_1,text,fontfile);
                 });
                 
                 if Path::new(&new_path).exists() {
