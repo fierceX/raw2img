@@ -541,7 +541,7 @@ pub async fn Body<G: Html>(cx: Scope<'_>) -> View<G> {
         }
 
 
-        div(class="row",hidden=*is_zoomed.get() || *is_edit.get()){
+        div(class="row"){
             Indexed(
                 iterable=images,
                 view=move |cx, (date,image)|
